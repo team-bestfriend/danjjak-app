@@ -1,0 +1,23 @@
+# Local secrets and data
+.env
+.env.*
+*.local
+*.log
+# Dependencies and generated output
+.gradle/
+**/build/
+**/node_modules/
+**/dist/
+*.class
+*.war
+*.jar
+coverage/
+# Editor and OS files
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+.DS_Store
+Thumbs.db
