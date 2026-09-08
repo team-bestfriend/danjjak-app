@@ -1,9 +1,27 @@
 package com.bestfriend.danjjak.analysis.dto;
 
-/**
- * 동의·자료 유무·기간·업무 횟수·검토 단계의 외부 표현 설계.
- * 협력: UsageAnalysisController, UsageAnalysisService.
- * 근거: FR-048, FR-049. <a href="../../../../../../../../../docs/specs/requirements/usage-analysis.md">상세 명세</a>.
- */
-public class UsageAnalysisDtos {
+import com.bestfriend.danjjak.pattern.dto.PatternDtos.PatternType;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+
+public final class UsageAnalysisDtos {
+
+    private UsageAnalysisDtos() {}
+
+    public enum AnalysisStatus {
+        CONSENT_REQUIRED, CONSENT_DECLINED, NO_DATA, AVAILABLE
+    }
+
+    public record UsageAnalysisResponse(
+        AnalysisStatus status, LocalDate from, LocalDate to,
+        List<PatternUsageResponse> patterns, List<StepAnalysisResponse> steps,
+        StepAnalysisResponse difficultStep) {}
+
+    public record PatternUsageResponse(
+        long patternId, PatternType patternType, String title, long completedCount) {}
+
+    public record StepAnalysisResponse(
+        long patternId, long stepId, String stepCode, String stepName, int stepOrder,
+        long visitCount, long errorScore, BigDecimal averageDurationSeconds) {}
 }
