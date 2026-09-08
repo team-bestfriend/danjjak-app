@@ -1,0 +1,23 @@
+{
+  "summary": "두 사유로 높은 주의: 거래/차감/실행 종료 이전의 가상 응답",
+  "value": {
+    "attemptId": "00000000-0000-4000-8000-000000000002",
+    "sourceBankAccountId": "101",
+    "recipient": {
+      "name": "예시 받는 사람",
+      "bankCode": "004",
+      "bankName": "예시 은행",
+      "maskedAccountNumber": "000-****-0000"
+    },
+    "amount": 10000000,
+    "amountInWords": "천만원",
+    "fee": 0,
+    "executionId": null,
+    "status": "REQUIRES_REVIEW",
+    "anomalyEventId": "401",
+    "riskLevel": "HIGH",
+    "reasons": ["HIGH_AMOUNT", "REPEATED_TRANSFER"],
+    "recentTransferCount": 2,
+    "assessedAt": "2026-09-08T03:00:00.000Z"
+  }
+}

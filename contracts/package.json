@@ -1,0 +1,18 @@
+{
+  "name": "danjjak-contracts",
+  "private": true,
+  "version": "0.1.0",
+  "description": "단짝 FE·BE 공동 HTTP 계약 검증",
+  "engines": { "node": ">=22.12.0 || >=20.19.0 <21.0.0" },
+  "scripts": {
+    "lint": "redocly lint openapi.yaml --config redocly.yaml",
+    "test": "node --test tests/contract.test.cjs",
+    "check": "npm run lint && npm test"
+  },
+  "devDependencies": {
+    "@redocly/cli": "2.51.2",
+    "ajv-draft-04": "1.0.0",
+    "ajv-formats": "3.0.1",
+    "yaml": "2.8.1"
+  }
+}

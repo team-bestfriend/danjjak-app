@@ -1,0 +1,8 @@
+extends:
+  - recommended-strict
+rules:
+  info-license: off
+  # OAuth 브라우저 이동은 302입니다. 테스트에서 이 두 동작만 예외로 허용합니다.
+  operation-2xx-response: off
+  no-invalid-media-type-examples: error
+  no-invalid-schema-examples: error

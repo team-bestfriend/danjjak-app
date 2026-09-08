@@ -26,8 +26,8 @@ KB IT's Your Life 해커톤
 - 고액·반복 송금을 한 번 더 확인하는 규칙 기반 이상거래 탐지
 - 동의한 이용 기록으로 자주 쓰는 업무와 안내를 검토할 단계 확인
 
-**현재는 명세·설계·개발 이슈를 준비한 단계입니다.** 아래 기술과 기능은 본선 개발 범위이며,
-Java 파일은 한국어 설계 설명과 빈 선언만 포함합니다. 실행 가능한 앱과 기능 검증 결과는 아직 없습니다.
+**현재는 FE 기본 이관·Spring 초기 설정을 반영하고 공동 API 계약에 맞춰 후속 구현을 진행하는 단계입니다.**
+대부분의 업무 Java는 빈 설계 선언입니다. WAR·계약 정적 검증과 앱 기능 검증은 구분합니다.
 
 ## ✨ MVP 개발 범위
 
@@ -158,8 +158,8 @@ git clone https://github.com/team-bestfriend/danjjak-app.git
 cd danjjak-app
 ```
 
-현재는 설계 문서와 배정 이슈부터 확인합니다. 실행 환경·패키지 설정·SQL·구체 HTTP 계약은
-본선의 해당 이슈에서 작성하므로, 지금 실행할 빌드·DB 시작 명령은 제공하지 않습니다.
+현재는 배정 이슈와 [공동 API 계약](contracts/README.md)을 확인합니다.
+[백엔드 빌드](backend/README.md)와 [계약 검증](contracts/README.md#검증) 절차를 제공합니다. Spring 초기 설정은 #12에서 반영했으며, DB 마이그레이션과 DB 상태를 확인하는 health는 후속 저장 기반 작업에서 구현합니다.
 
 | 항목 | 안내 |
 | --- | --- |
@@ -177,7 +177,7 @@ cd danjjak-app
 danjjak-app/
 |-- frontend/              프론트엔드 개발 안내
 |-- backend/               백엔드 설계 선언·개발 안내
-|-- contracts/             HTTP 계약 준비 문서
+|-- contracts/             공동 OpenAPI·경계 결정·계약 검증
 |-- db/                    데이터베이스 개발 안내
 |-- infra/                 실행 환경 준비 문서
 |-- docs/
@@ -193,9 +193,9 @@ danjjak-app/
 
 ## 🌐 API 명세
 
-- 현재 기준: [기능별 입출력 의미](docs/specs/requirements/architecture.md)와 [계약 준비 문서](contracts/README.md)
-- 본선 작업: [공동 HTTP 계약과 데이터·종료 책임 확정](https://github.com/team-bestfriend/danjjak-app/issues/11)
-- 인증·설정·사람/계좌·패턴/안내·조회/송금·FDS/알림·기록/분석의 구체 계약 작성 예정
+- 구현 기준: [OpenAPI 1.0.0](contracts/openapi.yaml) · [저장·종료 책임](contracts/decisions.md) · [FE 이관 차이](contracts/frontend-handoff.md)
+- [#11](https://github.com/team-bestfriend/danjjak-app/issues/11)에서 54개 API 동작과 물리 데이터 관계를 구체화했습니다.
+- [계약 검증 결과](contracts/validation.md)는 린트·스키마 경계값 검사이며 실제 서버·FE 연동은 후속 구현 범위입니다.
 
 ## 🤝 협업·개발 이슈
 

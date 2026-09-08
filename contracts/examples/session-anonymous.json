@@ -1,0 +1,8 @@
+{
+  "summary": "미로그인은 세션 확인에서 200, 보호 API에서 401",
+  "value": {
+    "authenticated": false,
+    "user": null,
+    "csrfToken": "example-only-csrf-token"
+  }
+}

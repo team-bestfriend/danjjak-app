@@ -1,0 +1,17 @@
+{
+  "summary": "직접 입력 모의 송금의 최종 제출 — 모든 값은 계약 검증용 가상 자료",
+  "value": {
+    "attemptId": "00000000-0000-4000-8000-000000000001",
+    "sourceBankAccountId": "101",
+    "recipient": {
+      "type": "DIRECT",
+      "name": "예시 받는 사람",
+      "bankCode": "004",
+      "accountNumber": "000-0000-0000"
+    },
+    "amount": 50000,
+    "amountInWords": "오만원",
+    "pin": "0000",
+    "context": { "type": "DIRECT" }
+  }
+}

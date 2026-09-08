@@ -1,6 +1,6 @@
 # 개발 이슈 매핑
 
-- Epic **10개**, 확정 구현 **30개**, 선택 검토 **1개**: 총 **41개**, 모두 향후 작업으로 열려 있습니다.
+- 초기 범위는 Epic **10개**, 확정 구현 **30개**, 선택 검토 **1개**: 총 **41개**입니다. #11의 계약 준비를 완료했으며 이후 추가된 [FE 이관 #42](https://github.com/team-bestfriend/danjjak-app/issues/42)는 별도로 진행합니다.
 - 네이티브 상위/하위 관계 **31개**, 차단 관계 **56개**. 아래 선행 이슈는 해당 결과의 구현·검증 준비 조건입니다.
 - 필수 경로에는 선택 검토를 넣지 않았습니다. 상세 규칙은 명세, 작업 범위·완료 조건은 실제 이슈를 기준으로 읽습니다.
 - [144개 ID 추적표](requirement-map.md) · [이슈 작성 지침](guide.md) · [검증 결과](../design-validation.md)
@@ -24,8 +24,8 @@
 
 | 이슈 | 상위 Epic | 선행 이슈 | 상태 |
 | --- | --- | --- | --- |
-| [#11 [구현] 공동 HTTP 계약과 데이터·종료 책임 확정](https://github.com/team-bestfriend/danjjak-app/issues/11) | [#1](https://github.com/team-bestfriend/danjjak-app/issues/1) | 없음 | 확정 구현 대기 |
-| [#12 [구현] 개발·실행 환경 구성](https://github.com/team-bestfriend/danjjak-app/issues/12) | [#1](https://github.com/team-bestfriend/danjjak-app/issues/1) | [#11](https://github.com/team-bestfriend/danjjak-app/issues/11) | 확정 구현 대기 |
+| [#11 [구현] 공동 HTTP 계약과 데이터·종료 책임 확정](https://github.com/team-bestfriend/danjjak-app/issues/11) | [#1](https://github.com/team-bestfriend/danjjak-app/issues/1) | 없음 | [계약·물리 모델·정적 검증 완료](../../contracts/validation.md) |
+| [#12 [구현] 개발·실행 환경 구성](https://github.com/team-bestfriend/danjjak-app/issues/12) | [#1](https://github.com/team-bestfriend/danjjak-app/issues/1) | [#11](https://github.com/team-bestfriend/danjjak-app/issues/11) | PR #44로 종료 · Spring 초기/문자열 health 반영, DB·health 계약 일치 후속 보완 |
 | [#13 [구현] 모의 데이터와 MyBatis 저장 기반 구성](https://github.com/team-bestfriend/danjjak-app/issues/13) | [#1](https://github.com/team-bestfriend/danjjak-app/issues/1) | [#12](https://github.com/team-bestfriend/danjjak-app/issues/12) | 확정 구현 대기 |
 | [#14 [구현] 네 탭과 읽기 쉬운 공통 조작 화면 구현](https://github.com/team-bestfriend/danjjak-app/issues/14) | [#2](https://github.com/team-bestfriend/danjjak-app/issues/2) | [#12](https://github.com/team-bestfriend/danjjak-app/issues/12) | 확정 구현 대기 |
 | [#15 [구현] 공통 입력·팝업·오류와 새로고침 복구 구현](https://github.com/team-bestfriend/danjjak-app/issues/15) | [#2](https://github.com/team-bestfriend/danjjak-app/issues/2) | [#14](https://github.com/team-bestfriend/danjjak-app/issues/14), [#11](https://github.com/team-bestfriend/danjjak-app/issues/11) | 확정 구현 대기 |
