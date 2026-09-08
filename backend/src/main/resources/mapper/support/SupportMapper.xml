@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bestfriend.danjjak.support.mapper.SupportMapper">
+    <resultMap id="guardianContactMap"
+               type="com.bestfriend.danjjak.support.model.GuardianContactRecord">
+        <id property="guardianContactId" column="guardian_contact_id"/>
+        <result property="phoneNumber" column="phone_number"/>
+    </resultMap>
+
+    <resultMap id="notificationAnomalyMap"
+               type="com.bestfriend.danjjak.support.model.NotificationAnomalyRecord">
+        <id property="anomalyEventId" column="anomaly_event_id"/>
+        <result property="recipientName" column="recipient_name"/>
+        <result property="amount" column="amount"/>
+        <result property="riskLevel" column="risk_level"/>
+        <result property="finalAction" column="final_action"/>
+        <result property="guardianNotifiedAt" column="guardian_notified_at"/>
+    </resultMap>
+
+    <select id="hasGuardianShareConsent" resultType="boolean">
+        SELECT guardian_share_agreed
+        FROM users
+        WHERE user_id = #{userId}
+    </select>
+
+    <select id="findGuardian" resultMap="guardianContactMap">
+        SELECT guardian_contact_id,
+               phone_number
+        FROM guardian_contacts
+        WHERE user_id = #{userId}
+    </select>
+
+    <insert id="upsertGuardian">
+        INSERT INTO guardian_contacts (user_id, phone_number)
+        VALUES (#{userId}, #{phoneNumber})
+        ON DUPLICATE KEY UPDATE
+            phone_number = #{phoneNumber}
+    </insert>
+
+    <select id="findHighAnomaly" resultMap="notificationAnomalyMap">
+        SELECT anomaly_event_id,
+               recipient_name,
+               amount,
+               risk_level,
+               final_action,
+               guardian_notified_at
+        FROM anomaly_events
+        WHERE user_id = #{userId}
+          AND anomaly_event_id = #{anomalyEventId}
+          AND risk_level = 'HIGH'
+    </select>
+
+    <update id="markGuardianNotified">
+        UPDATE anomaly_events
+        SET guardian_notified_at = #{notifiedAt}
+        WHERE user_id = #{userId}
+          AND anomaly_event_id = #{anomalyEventId}
+          AND risk_level = 'HIGH'
+          AND final_action IS NULL
+          AND guardian_notified_at IS NULL
+    </update>
+</mapper>

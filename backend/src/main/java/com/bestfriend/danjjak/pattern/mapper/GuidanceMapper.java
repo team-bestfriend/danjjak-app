@@ -1,9 +1,18 @@
 package com.bestfriend.danjjak.pattern.mapper;
 
-/**
- * 대상별 문구·방식·가족 파일 참조·불일치의 저장 경계.
- * 협력: GuidanceService, GuidanceRecord.
- * 근거: FR-019, FR-025, FR-054, FR-055. <a href="../../../../../../../../../docs/specs/requirements/guidance-voice.md">상세 명세</a>.
- */
+import com.bestfriend.danjjak.pattern.model.GuidanceRecord;
+import java.util.List;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+@Mapper
 public interface GuidanceMapper {
+    List<GuidanceRecord> findAll(@Param("userId") long userId, @Param("patternId") long patternId);
+
+    int updateText(@Param("userId") long userId, @Param("patternId") long patternId,
+            @Param("target") String target, @Param("text") String text, @Param("voiceMode") String voiceMode);
+
+    int updateAudio(@Param("userId") long userId, @Param("patternId") long patternId,
+            @Param("target") String target, @Param("filePath") String filePath,
+            @Param("contentType") String contentType);
 }

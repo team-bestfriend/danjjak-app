@@ -1,9 +1,29 @@
 package com.bestfriend.danjjak.user.mapper;
 
-/**
- * 카카오 연결·현재 설정·동의 선택과 완료 상태의 저장 경계.
- * 협력: UserService, UserSettingsRecord.
- * 근거: FR-002, FR-004, FR-053. <a href="../../../../../../../../../docs/specs/requirements/auth-settings.md">상세 명세</a>.
- */
+import com.bestfriend.danjjak.user.model.UserSettingsRecord;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+@Mapper
 public interface UserMapper {
+
+    UserSettingsRecord findCurrentUser(long userId);
+
+    UserSettingsRecord findByKakaoUserId(long kakaoUserId);
+
+    UserSettingsRecord findFirstUnlinkedUser();
+
+    int bindKakaoUserId(
+            @Param("userId") long userId, @Param("kakaoUserId") long kakaoUserId);
+
+    int updateConsents(
+            @Param("userId") long userId,
+            @Param("usageLogAgreed") boolean usageLogAgreed,
+            @Param("guardianShareAgreed") boolean guardianShareAgreed);
+
+    int updateSettings(
+            @Param("userId") long userId,
+            @Param("fontSize") String fontSize,
+            @Param("voiceSpeed") String voiceSpeed,
+            @Param("guideVoiceType") String guideVoiceType);
 }

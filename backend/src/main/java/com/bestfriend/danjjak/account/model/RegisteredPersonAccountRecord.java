@@ -1,9 +1,77 @@
 package com.bestfriend.danjjak.account.model;
 
-/**
- * 사람과 받는 계좌를 결합해 복수 계좌 목록을 구성하는 조회 모델.
- * 협력: AccountMapper, RegisteredPersonRecord.
- * 근거: FR-005, FR-006. <a href="../../../../../../../../../docs/specs/requirements/people-accounts.md">상세 명세</a>.
- */
 public class RegisteredPersonAccountRecord {
+
+    private Long registeredPersonId;
+    private String name;
+    private String relationship;
+    private Long accountId;
+    private String bankCode;
+    private String bankName;
+    private String accountNumber;
+    private String accountAlias;
+
+    public Long getRegisteredPersonId() {
+        return registeredPersonId;
+    }
+
+    public void setRegisteredPersonId(Long registeredPersonId) {
+        this.registeredPersonId = registeredPersonId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getRelationship() {
+        return relationship;
+    }
+
+    public void setRelationship(String relationship) {
+        this.relationship = relationship;
+    }
+
+    public Long getAccountId() {
+        return accountId;
+    }
+
+    public void setAccountId(Long accountId) {
+        this.accountId = accountId;
+    }
+
+    public String getBankCode() {
+        return bankCode;
+    }
+
+    public void setBankCode(String bankCode) {
+        this.bankCode = bankCode;
+    }
+
+    public String getBankName() {
+        return bankName;
+    }
+
+    public void setBankName(String bankName) {
+        this.bankName = bankName;
+    }
+
+    public String getAccountNumber() {
+        return accountNumber;
+    }
+
+    public void setAccountNumber(String accountNumber) {
+        this.accountNumber = accountNumber;
+    }
+
+    public String getAccountAlias() {
+        return accountAlias;
+    }
+
+    public void setAccountAlias(String accountAlias) {
+        this.accountAlias = accountAlias;
+    }
 }

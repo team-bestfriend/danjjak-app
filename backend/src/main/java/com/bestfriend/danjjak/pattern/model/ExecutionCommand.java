@@ -1,9 +1,20 @@
 package com.bestfriend.danjjak.pattern.model;
 
-/**
- * 패턴 시작과 실제 선택 내 계좌의 연결 의도를 전달하는 명령.
- * 협력: PatternService, PatternMapper, TransferService.
- * 근거: FR-044, FR-008, SC-015. <a href="../../../../../../../../../docs/specs/requirements/usage-analysis.md">상세 명세</a>.
- */
+import java.time.LocalDateTime;
+
 public class ExecutionCommand {
+
+    private long executionId;
+    private long patternId;
+    private Long sourceAccountId;
+    private LocalDateTime startedAt;
+
+    public long getExecutionId() { return executionId; }
+    public void setExecutionId(long executionId) { this.executionId = executionId; }
+    public long getPatternId() { return patternId; }
+    public void setPatternId(long patternId) { this.patternId = patternId; }
+    public Long getSourceAccountId() { return sourceAccountId; }
+    public void setSourceAccountId(Long sourceAccountId) { this.sourceAccountId = sourceAccountId; }
+    public LocalDateTime getStartedAt() { return startedAt; }
+    public void setStartedAt(LocalDateTime startedAt) { this.startedAt = startedAt; }
 }

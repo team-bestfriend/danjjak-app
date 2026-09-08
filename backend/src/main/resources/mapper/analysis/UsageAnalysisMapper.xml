@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bestfriend.danjjak.analysis.mapper.UsageAnalysisMapper">
+    <sql id="ownedPeriod">
+        fp.user_id = #{userId}
+        AND pe.ended_at &gt;= #{from}
+        AND pe.ended_at &lt;= #{to}
+    </sql>
+
+    <select id="findPatternUsage" resultType="com.bestfriend.danjjak.analysis.model.PatternUsageRecord">
+        SELECT fp.financial_pattern_id AS pattern_id, fp.pattern_type, fp.title,
+               SUM(CASE WHEN pe.status = 'COMPLETED' THEN 1 ELSE 0 END) AS completed_count
+        FROM financial_patterns fp
+        JOIN pattern_executions pe ON pe.financial_pattern_id = fp.financial_pattern_id
+        WHERE <include refid="ownedPeriod"/>
+        GROUP BY fp.financial_pattern_id, fp.pattern_type, fp.title
+        ORDER BY fp.financial_pattern_id
+    </select>
+
+    <select id="findStepAnalysis" resultType="com.bestfriend.danjjak.analysis.model.StepAnalysisRecord">
+        SELECT fp.financial_pattern_id AS pattern_id, ps.pattern_step_id AS step_id,
+               ps.step_code, ps.step_name, ps.step_order, COUNT(*) AS visit_count,
+               SUM(sel.retry_count + sel.back_count + sel.wrong_touch_count
+                   + CASE WHEN sel.route_deviation THEN 1 ELSE 0 END) AS error_score,
+               AVG(CASE WHEN sel.ended_at IS NOT NULL
+                   THEN TIMESTAMPDIFF(SECOND, sel.started_at, sel.ended_at) END) AS average_duration_seconds
+        FROM financial_patterns fp
+        JOIN pattern_executions pe ON pe.financial_pattern_id = fp.financial_pattern_id
+        JOIN step_execution_logs sel ON sel.pattern_execution_id = pe.pattern_execution_id
+        JOIN pattern_steps ps ON ps.pattern_step_id = sel.pattern_step_id
+                            AND ps.financial_pattern_id = fp.financial_pattern_id
+        WHERE <include refid="ownedPeriod"/>
+        GROUP BY fp.financial_pattern_id, ps.pattern_step_id, ps.step_code, ps.step_name, ps.step_order
+        ORDER BY fp.financial_pattern_id, ps.step_order, ps.pattern_step_id
+    </select>
+</mapper>
