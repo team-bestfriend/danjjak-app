@@ -1,9 +1,18 @@
 package com.bestfriend.danjjak.analysis.dto;
 
-/**
- * 현재·제안 문구 비교와 재비교 결과의 외부 표현 설계.
- * 협력: InstructionSuggestionController, InstructionSuggestionService.
- * 근거: FR-050, FR-051, FR-052. <a href="../../../../../../../../../docs/specs/requirements/usage-analysis.md">상세 명세</a>.
- */
-public class InstructionSuggestionDtos {
+import com.bestfriend.danjjak.analysis.dto.UsageAnalysisDtos.AnalysisStatus;
+import java.time.LocalDate;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.Size;
+
+public final class InstructionSuggestionDtos {
+    private InstructionSuggestionDtos() {}
+
+    public record SuggestionResponse(AnalysisStatus status, LocalDate from, LocalDate to, InstructionSuggestion suggestion) {}
+
+    public record InstructionSuggestion(long patternId, String patternTitle, long stepId, int stepOrder,
+                                        String stepCode, String stepName, String currentText, String suggestedText,
+                                        boolean hasFamilyAudio, boolean voiceScriptOutdated) {}
+
+    public record ApplySuggestionRequest(@NotBlank @Size(max = 500) String expectedText) {}
 }
