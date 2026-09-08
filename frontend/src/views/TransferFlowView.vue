@@ -300,7 +300,7 @@
       title="잠깐, 확인이 필요해요"
       rightLabel="취소"
       :onRight="cancelAnomaly"
-      :rightDisabled="store.anomalyResolving"
+      :rightDisabled="store.anomalyResolving || store.notificationSending"
     />
     <div class="flex-1 overflow-y-auto px-4 pt-4 pb-6 space-y-4">
       <template v-if="store.anomaly">
@@ -329,8 +329,8 @@
       <p v-if="store.transferError" class="rounded-xl bg-[#FEF2F2] p-3 text-[#991B1B]" role="alert">{{ store.transferError }}</p>
       <div v-if="store.notificationResult" class="rounded-2xl border border-[#93C5FD] bg-[#EFF6FF] p-4">
         <p class="font-bold text-[#1E3A8A]">{{ notificationTitle }}</p>
-        <p class="text-[#1E40AF] mt-1">{{ store.notificationResult.detail }}</p>
-        <p v-if="store.notificationResult.result === 'SENT' && store.notificationResult.sentAt" class="text-[#1E40AF] mt-1">
+        <p class="text-[#1E40AF] mt-1">{{ store.notificationResult.message }}</p>
+        <p v-if="store.notificationResult.mode === 'ACTUAL' && store.notificationResult.sentAt" class="text-[#1E40AF] mt-1">
           발송 시각 {{ formatDate(store.notificationResult.sentAt) }}
         </p>
       </div>
@@ -338,8 +338,8 @@
         <Btn
           v-if="store.anomaly?.riskLevel === 'HIGH' && guardianShareAgreed"
           variant="danger"
-          :disabled="store.notificationSending || Boolean(store.notificationResult)"
-          @click="notifyGuardian"
+          :disabled="store.notificationSending || store.anomalyResolving || Boolean(store.transferResult) || store.transferCancelled || store.notificationResult?.mode === 'ACTUAL'"
+          @click="notificationConfirmOpen = true"
         >{{ notificationButtonLabel }}</Btn>
         <div
           v-else-if="store.anomaly?.riskLevel === 'HIGH'"
@@ -350,26 +350,39 @@
             동의 설정 변경하기
           </Btn>
         </div>
-        <p v-if="store.supportLoading" class="rounded-2xl bg-white p-4 text-center text-[#6B7280]">보호자 번호를 불러오고 있어요…</p>
+        <section v-if="notificationConfirmOpen && guardianShareAgreed" aria-labelledby="notification-confirm-title" class="rounded-2xl border-2 border-[#FCD34D] bg-white p-4 space-y-3">
+          <h2 id="notification-confirm-title" class="text-[22px] font-bold">내 카카오톡으로 시연 알림을 보낼까요?</h2>
+          <p>실제 수신자는 로그인한 본인이에요. 보호자에게 전송하거나 송금을 승인하는 기능이 아니에요.</p>
+          <Btn :disabled="store.notificationSending || store.anomalyResolving" @click="notifyGuardian">본인 전송 시연 확인</Btn>
+          <Btn variant="secondary" @click="notificationConfirmOpen = false">알림 보내기 취소</Btn>
+        </section>
+        <p v-if="store.supportLoading" role="status" class="rounded-2xl bg-white p-4 text-center text-[#6B7280]">보호자 번호를 불러오고 있어요…</p>
         <div v-else-if="store.supportError" class="rounded-2xl border border-[#FCA5A5] bg-[#FEF2F2] p-4 space-y-3">
           <p class="text-[#991B1B]" role="alert">{{ store.supportError }}</p>
           <Btn variant="secondary" @click="store.loadSupport(true)">번호 다시 불러오기</Btn>
         </div>
-        <a
-          v-else-if="guardianPhone"
-          :href="'tel:' + guardianPhone"
-          class="flex min-h-[56px] w-full items-center justify-center rounded-[18px] border-2 border-[#EF4444] font-bold text-[#B91C1C]"
-        >보호자에게 전화하기 · {{ guardianPhone }}</a>
-        <div v-else class="rounded-2xl border border-[#E5E7EB] bg-white p-4 space-y-3 text-center">
-          <p class="font-bold text-[#6B7280]">보호자 번호가 등록되지 않았어요.</p>
-          <Btn variant="secondary" @click="store.navigate('settings')">보호자 번호 등록하기</Btn>
+        <section v-else-if="guardianPhone" aria-labelledby="guardian-call-title" class="rounded-2xl border-2 border-[#E5E7EB] bg-white p-4 space-y-3">
+          <h2 id="guardian-call-title" class="text-[22px] font-bold">보호자 전화</h2>
+          <p class="break-all text-[22px]">저장된 번호: {{ guardianPhone }}</p>
+          <p class="text-[16px]">전화 앱이 열리지 않거나 통화를 지원하지 않는 기기에서는 이 번호를 보고 다른 전화로 걸어 주세요.</p>
+          <button ref="guardianCallTrigger" type="button" class="min-h-[56px] w-full rounded-[18px] border-2 p-3 text-[20px] font-bold" :aria-expanded="guardianCallOpen" aria-controls="guardian-call-confirm" @click="guardianCallOpen = !guardianCallOpen">보호자에게 전화하기</button>
+          <div v-if="guardianCallOpen" id="guardian-call-confirm" class="space-y-3" aria-label="보호자 전화번호 확인">
+            <p class="text-[20px] font-bold">{{ guardianPhone }} 번호가 맞나요?</p>
+            <a :href="telephoneHref(guardianPhone)" class="flex min-h-[56px] items-center justify-center rounded-[18px] bg-[#2563EB] px-4 py-3 text-[20px] font-bold text-white">이 번호로 전화 앱 열기</a>
+            <Btn variant="secondary" @click="cancelGuardianCall">전화 취소</Btn>
+          </div>
+          <p class="text-[16px]">전화 앱을 열어도 통화 성공이나 보호자 확인을 알 수 없어요. 송금 결정은 바뀌지 않아요.</p>
+        </section>
+        <div v-else class="rounded-2xl bg-white p-4 space-y-3">
+          <p>등록된 보호자 번호가 없어요. 설정에서 연락처를 등록해 주세요.</p>
+          <Btn variant="secondary" @click="store.navigate('settings')">보호자 연락처 등록하기</Btn>
         </div>
-        <Btn variant="secondary" :disabled="store.anomalyResolving" @click="recheckTransfer">거래 정보 다시 확인</Btn>
-        <Btn :disabled="store.anomalyResolving" @click="continueTransfer">
+        <Btn variant="secondary" :disabled="store.anomalyResolving || store.notificationSending" @click="recheckTransfer">거래 정보 다시 확인</Btn>
+        <Btn :disabled="store.anomalyResolving || store.notificationSending" @click="continueTransfer">
           {{ store.anomalyResolving ? '처리 중…' : '확인 후 계속 송금' }}
         </Btn>
         <button
-          :disabled="store.anomalyResolving"
+          :disabled="store.anomalyResolving || store.notificationSending"
           @click="cancelAnomaly"
           class="w-full min-h-[52px] text-center text-[#6B7280] font-bold disabled:opacity-50"
         >송금 취소하기</button>
@@ -432,7 +445,9 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { telephoneHref } from '../features/support/contact.js';
+import { hasGuardianSharingConsent } from '../features/support/consent.js';
 import { useAppStore } from '../stores/appStore';
 import { BANKS } from '../constants/banks';
 import SafeArea from '../components/common/SafeArea.vue';
@@ -479,23 +494,35 @@ const directFieldErrors = computed(() => ({
     ? '계좌번호는 숫자와 하이픈을 포함해 8~50자로 입력해 주세요.'
     : '',
 }));
+const guardianCallOpen = ref(false);
+const guardianCallTrigger = ref(null);
+function cancelGuardianCall() {
+  guardianCallOpen.value = false;
+  guardianCallTrigger.value?.focus?.();
+}
+const notificationConfirmOpen = ref(false);
 const guardianPhone = computed(() => store.support?.guardian?.phoneNumber ?? '');
-const guardianShareAgreed = computed(() => Boolean(
-  store.currentUser?.consents?.guardianShareAgreed,
+const guardianShareAgreed = computed(() => hasGuardianSharingConsent(
+  store.currentUser?.consents,
 ));
+watch(() => [store.supportSessionVersion, guardianPhone.value, props.flowStep, store.anomaly?.anomalyEventId], () => {
+  guardianCallOpen.value = false;
+  notificationConfirmOpen.value = false;
+}, { flush: 'sync' });
+watch(guardianShareAgreed, () => { notificationConfirmOpen.value = false; });
 const riskLabel = computed(() => store.anomaly?.riskLevel === 'HIGH' ? '높은 위험' : '주의 필요');
 const notificationTitle = computed(() => {
   const titles = {
-    SENT: '카카오 알림을 실제로 보냈어요.',
-    MOCKED_NO_TOKEN: '토큰이 없어 Mock 알림으로 확인했어요.',
-    MOCKED_AFTER_ACTUAL_FAILURE: '실제 발송 실패 후 Mock 알림으로 대체했어요.',
+    ACTUAL: '시연 알림을 내 카카오톡으로 보냈어요.',
+    MOCK_NO_CREDENTIALS: '실제 전송 없이 알림 보내기를 시연했어요.',
+    MOCK_AFTER_FAILURE: '카카오톡 전송에 실패해 모의 알림으로 시연했어요.',
   };
-  return titles[store.notificationResult?.result] ?? '알림 결과를 확인했어요.';
+  return titles[store.notificationResult?.mode] ?? '알림 결과를 확인했어요.';
 });
 const notificationButtonLabel = computed(() => {
   if (store.notificationSending) return '알림 요청 중…';
-  if (store.notificationResult) return '알림 요청 완료';
-  return '카카오 나에게 알림 보내기';
+  if (store.notificationResult?.mode === 'ACTUAL') return '본인 전송 시연 완료';
+  return '보호자에게 카톡 보내기';
 });
 const fraudReasons = computed(() => (store.anomaly?.reasons ?? []).map((reason) => {
   if (reason === 'HIGH_AMOUNT') return '1천만원 이상의 큰 금액이에요.';
@@ -632,8 +659,7 @@ function replaceTransferStep(step) {
 }
 
 function recheckTransfer() {
-  store.anomalyRechecked = true;
-  store.navigate('final-confirm');
+  if (store.recheckAnomaly()) store.navigate('final-confirm');
 }
 
 function returnToWarning() {
@@ -662,7 +688,8 @@ async function cancelAnomaly() {
 
 async function notifyGuardian() {
   try {
-    await store.sendGuardianNotification();
+    notificationConfirmOpen.value = false;
+    await store.sendGuardianNotification(true);
   } catch {
     // 알림 실패는 사용자의 계속·취소 결정을 막지 않는다.
   }

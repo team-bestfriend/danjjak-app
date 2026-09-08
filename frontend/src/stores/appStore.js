@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { isPhoneNumber, validateGuardian, validateSupport } from '../features/support/contact.js';
+import { hasGuardianSharingConsent } from '../features/support/consent.js';
 import { authApi, userApi } from '../api/authApi.js';
 import { accountApi, supportApi, transferApi } from '../api/financeApi.js';
 import { ApiError, setCsrfToken } from '../api/httpClient.js';
@@ -146,25 +148,16 @@ function validateResolutionResponse(response, anomalyEventId) {
   }
 }
 
-function validateNotificationResponse(response, anomalyEventId) {
-  const result = response?.result;
-  const validResult = ['SENT', 'MOCKED_NO_TOKEN', 'MOCKED_AFTER_ACTUAL_FAILURE'].includes(result);
-  const requiredFieldsExist = typeof response?.actualAttempted === 'boolean'
-    && typeof response?.actualSucceeded === 'boolean'
-    && typeof response?.detail === 'string';
-  const sentIsConsistent = result !== 'SENT'
-    || (response.deliveryMode === 'ACTUAL' && response.actualAttempted
-      && response.actualSucceeded && typeof response.sentAt === 'string'
-      && !Number.isNaN(Date.parse(response.sentAt)));
-  const mockIsConsistent = result === 'SENT'
-    || (response.deliveryMode === 'MOCK' && !response.actualSucceeded && !response.sentAt);
-  const attemptIsConsistent = result === 'MOCKED_NO_TOKEN'
-    ? !response.actualAttempted
-    : Boolean(response.actualAttempted);
-  if (!response || response.anomalyEventId !== anomalyEventId
-      || !validResult || !requiredFieldsExist || !sentIsConsistent
-      || !mockIsConsistent || !attemptIsConsistent) {
-    throw invalidResponse();
+function validateNotificationResponse(response) {
+  const actual = response?.mode === 'ACTUAL';
+  const mock = ['MOCK_NO_CREDENTIALS', 'MOCK_AFTER_FAILURE'].includes(response?.mode);
+  const validTimestamp = typeof response?.sentAt === 'string'
+    && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(response.sentAt)
+    && !Number.isNaN(Date.parse(response.sentAt));
+  if ((!actual && !mock) || response?.recipient !== 'SELF'
+      || typeof response?.message !== 'string'
+      || (actual ? !validTimestamp : response.sentAt !== null)) {
+    throw new ApiError('INVALID_RESPONSE', '알림 결과를 확인하지 못했어요. 내 카카오톡을 확인해 주세요. 자동으로 다시 보내지 않아요.', 502);
   }
 }
 
@@ -243,6 +236,30 @@ export const useAppStore = defineStore('app', () => {
   const supportError = ref('');
   const guardianSaving = ref(false);
   let pendingGuardianSave = null;
+  let pendingSupportLoad = null;
+  let guardianRevision = 0;
+  const supportSessionVersion = ref(0);
+  const guardianSaveError = ref('');
+  let notificationSequence = 0;
+
+  function resetSupportSession() {
+    supportSessionVersion.value += 1;
+    guardianRevision = 0;
+    pendingSupportLoad = null;
+    pendingGuardianSave = null;
+    support.value = null;
+    supportLoaded.value = false;
+    supportLoading.value = false;
+    supportError.value = '';
+    guardianSaveError.value = '';
+    guardianSaving.value = false;
+    notificationSequence += 1;
+    notificationSending.value = false;
+    notificationResult.value = null;
+    anomaly.value = null;
+    transferError.value = '';
+  }
+  watch(() => currentUser.value?.userId, resetSupportSession, { flush: 'sync' });
 
   const transferAmount = ref('0');
   const isNewAccountFlow = ref(false);
@@ -262,6 +279,12 @@ export const useAppStore = defineStore('app', () => {
   const notificationResult = ref(null);
   const transferCancelled = ref(false);
   const postTransferSyncError = ref('');
+
+  watch(() => anomaly.value?.anomalyEventId, () => {
+    notificationSequence += 1;
+    notificationSending.value = false;
+    notificationResult.value = null;
+  }, { flush: 'sync' });
 
   const defaultOwnedAccount = computed(() => (
     ownedAccounts.value.find((account) => account.primary) ?? ownedAccounts.value[0] ?? null
@@ -321,6 +344,7 @@ export const useAppStore = defineStore('app', () => {
   }
 
   function clearSession(message = '') {
+    resetSupportSession();
     setCsrfToken(null);
     accountSessionVersion += 1;
     pendingOwnedAccountsLoad = null;
@@ -855,38 +879,67 @@ export const useAppStore = defineStore('app', () => {
     }
   }
 
-  async function loadSupport(force = false) {
-    if (supportLoading.value || (supportLoaded.value && !force)) return;
+  function loadSupport(force = false) {
+    if (pendingSupportLoad) return pendingSupportLoad;
+    if (supportLoaded.value && !force) return Promise.resolve(true);
+    const version = supportSessionVersion.value;
+    const revision = guardianRevision;
     supportLoading.value = true;
     supportError.value = '';
-    try {
-      support.value = await supportApi.getSupport();
-      supportLoaded.value = true;
-    } catch (error) {
-      support.value = null;
-      supportLoaded.value = false;
-      supportError.value = toMessage(error, '연락처를 불러오지 못했습니다.');
-    } finally {
-      supportLoading.value = false;
-    }
+    pendingSupportLoad = (async () => {
+      try {
+        const response = validateSupport(await supportApi.getSupport());
+        if (version !== supportSessionVersion.value) return false;
+        support.value = revision === guardianRevision
+          ? response : { ...response, guardian: support.value.guardian };
+        supportLoaded.value = true;
+        return true;
+      } catch (error) {
+        if (version === supportSessionVersion.value) {
+          supportLoaded.value = false;
+          supportError.value = error?.status === 503
+            ? '연락처 서비스를 준비 중이에요. 잠시 후 다시 조회해 주세요.'
+            : '연락처를 불러오지 못했어요. 다시 시도해 주세요.';
+        }
+        return false;
+      } finally {
+        if (version === supportSessionVersion.value) {
+          supportLoading.value = false;
+          pendingSupportLoad = null;
+        }
+      }
+    })();
+    return pendingSupportLoad;
   }
 
-  async function saveGuardian(phoneNumber) {
+  function saveGuardian(phoneNumber) {
     if (pendingGuardianSave) return pendingGuardianSave;
-    guardianSaving.value = true;
-    supportError.value = '';
-    pendingGuardianSave = supportApi.updateGuardian(phoneNumber);
-    try {
-      const guardian = await pendingGuardianSave;
-      support.value = { ...support.value, guardian };
-      return guardian;
-    } catch (error) {
-      supportError.value = toMessage(error, '보호자 연락처를 저장하지 못했습니다.');
-      throw error;
-    } finally {
-      guardianSaving.value = false;
-      pendingGuardianSave = null;
+    guardianSaveError.value = '';
+    if (!isPhoneNumber(phoneNumber)) {
+      guardianSaveError.value = '전화번호는 5~30자로, 숫자 묶음 사이에 하이픈 하나만 입력해 주세요.';
+      return Promise.reject(new ApiError('INVALID_REQUEST', guardianSaveError.value, 400));
     }
+    const version = supportSessionVersion.value;
+    guardianSaving.value = true;
+    pendingGuardianSave = (async () => {
+      try {
+        const guardian = validateGuardian(await supportApi.updateGuardian(phoneNumber));
+        if (version !== supportSessionVersion.value) return null;
+        guardianRevision += 1;
+        support.value = { ...support.value, guardian };
+        return guardian;
+      } catch (error) {
+        if (version !== supportSessionVersion.value) return null;
+        guardianSaveError.value = '보호자 연락처를 저장하지 못했어요. 입력한 번호를 확인하고 다시 시도해 주세요.';
+        throw error;
+      } finally {
+        if (version === supportSessionVersion.value) {
+          guardianSaving.value = false;
+          pendingGuardianSave = null;
+        }
+      }
+    })();
+    return pendingGuardianSave;
   }
 
   function resetPatternExecution() {
@@ -1025,6 +1078,8 @@ export const useAppStore = defineStore('app', () => {
   }
 
   function startTransfer(options = {}) {
+    notificationSequence += 1;
+    notificationSending.value = false;
     if (!options.pattern) resetPatternExecution();
     transferAmount.value = '0';
     isNewAccountFlow.value = false;
@@ -1128,8 +1183,14 @@ export const useAppStore = defineStore('app', () => {
     }
   }
 
+  function recheckAnomaly() {
+    if (!anomaly.value?.anomalyEventId || anomalyResolving.value || notificationSending.value) return false;
+    anomalyRechecked.value = true;
+    return true;
+  }
+
   async function resolveAnomaly(action) {
-    if (!anomaly.value?.anomalyEventId || anomalyResolving.value) return null;
+    if (!anomaly.value?.anomalyEventId || anomalyResolving.value || notificationSending.value) return null;
     anomalyResolving.value = true;
     transferError.value = '';
     try {
@@ -1160,32 +1221,43 @@ export const useAppStore = defineStore('app', () => {
     }
   }
 
-  async function sendGuardianNotification() {
+  async function sendGuardianNotification(confirmedSelfDemo = false) {
     if (!anomaly.value?.anomalyEventId || anomaly.value.riskLevel !== 'HIGH'
-        || notificationSending.value) return null;
-    if (currentUser.value?.consents?.guardianShareAgreed === false) {
-      const error = new ApiError(
-        'GUARDIAN_SHARE_CONSENT_REQUIRED',
-        '보호자 공유 동의 후 카카오 알림을 요청할 수 있습니다.',
-        403,
-      );
+        || anomaly.value.decision || anomaly.value.resolvedAt || transferResult.value
+        || transferCancelled.value || anomalyResolving.value || notificationSending.value) return null;
+    if (!hasGuardianSharingConsent(currentUser.value?.consents)) {
+      const error = new ApiError('GUARDIAN_SHARE_CONSENT_REQUIRED',
+        '보호자 공유 동의 후 카카오 알림을 요청할 수 있습니다.', 403);
       transferError.value = error.message;
       throw error;
     }
-    if (notificationResult.value) return notificationResult.value;
+    if (confirmedSelfDemo !== true) return null;
+    if (notificationResult.value?.mode === 'ACTUAL') return notificationResult.value;
+    const version = supportSessionVersion.value;
+    const event = anomaly.value;
+    const sequence = ++notificationSequence;
+    const isCurrent = () => version === supportSessionVersion.value
+      && sequence === notificationSequence && event === anomaly.value
+      && !anomaly.value?.decision && !anomaly.value?.resolvedAt
+      && !transferResult.value && !transferCancelled.value;
     notificationSending.value = true;
+    notificationResult.value = null;
     transferError.value = '';
     try {
-      const anomalyEventId = anomaly.value.anomalyEventId;
-      const response = await supportApi.notifyGuardian(anomalyEventId);
-      validateNotificationResponse(response, anomalyEventId);
+      const response = await supportApi.notifyGuardian(event.anomalyEventId, true);
+      if (!isCurrent()) return null;
+      validateNotificationResponse(response);
       notificationResult.value = response;
-      return notificationResult.value;
+      return response;
     } catch (error) {
-      transferError.value = toMessage(error, '보호자 알림 요청을 처리하지 못했습니다.');
+      if (!isCurrent()) return null;
+      transferError.value = error?.code === 'NOTIFICATION_RESULT_UNKNOWN'
+        ? '알림 전송 결과를 아직 확인할 수 없어요. 내 카카오톡을 확인해 주세요. 자동으로 다시 보내지 않아요.'
+        : error?.code === 'INVALID_RESPONSE' ? error.message
+          : '알림 요청을 처리하지 못했어요. 내 카카오톡을 확인한 후 다시 선택해 주세요.';
       throw error;
     } finally {
-      notificationSending.value = false;
+      if (version === supportSessionVersion.value && sequence === notificationSequence) notificationSending.value = false;
     }
   }
 
@@ -1261,6 +1333,8 @@ export const useAppStore = defineStore('app', () => {
     supportLoaded,
     supportError,
     guardianSaving,
+    guardianSaveError,
+    supportSessionVersion,
     transferAmount,
     isNewAccountFlow,
     isPatternTransfer,
@@ -1321,6 +1395,7 @@ export const useAppStore = defineStore('app', () => {
     setDirectRecipient,
     submitTransfer,
     resolveAnomaly,
+    recheckAnomaly,
     sendGuardianNotification,
     refreshAfterTransfer,
   };

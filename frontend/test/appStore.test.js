@@ -432,14 +432,15 @@ test('거래 조회 실패 시 이전 계좌의 잔액과 거래를 남기지 �
 test('보호자 저장 응답을 이후 전화 연결의 기준 상태로 사용한다', async () => {
   const store = createStore();
   store.support = {
-    guardian: { guardianContactId: 1, phoneNumber: '010-0000-1004' },
-    customerCenterPhone: '1588-0000',
+    guardian: { phoneNumber: '010-0000-1004' },
+    customerCenter: { name: '고객센터', phoneNumber: '1588-0000' },
+    notificationRecipient: 'SELF',
   };
   let requestBody;
   globalThis.fetch = async (url, options = {}) => {
     assert.equal(url, '/api/support/guardian');
     requestBody = JSON.parse(options.body);
-    return jsonResponse({ guardianContactId: 1, phoneNumber: '010-1111-2222' });
+    return jsonResponse({ phoneNumber: '010-1111-2222' });
   };
 
   const saved = await store.saveGuardian('010-1111-2222');
@@ -464,7 +465,7 @@ test('보호자 저장 요청이 진행 중이면 같은 서버 응답을 공유
   const second = store.saveGuardian('010-2222-3333');
   assert.equal(requestCount, 1);
 
-  completeRequest(jsonResponse({ guardianContactId: 1, phoneNumber: '010-2222-3333' }));
+  completeRequest(jsonResponse({ phoneNumber: '010-2222-3333' }));
   const [firstResult, secondResult] = await Promise.all([first, second]);
 
   assert.deepEqual(secondResult, firstResult);
@@ -477,13 +478,14 @@ test('부분 보호자 저장 상태는 고객센터를 포함한 전체 조회�
   let supportReadCount = 0;
   globalThis.fetch = async (url, options = {}) => {
     if (url === '/api/support/guardian' && options.method === 'PUT') {
-      return jsonResponse({ guardianContactId: 1, phoneNumber: '010-3333-4444' });
+      return jsonResponse({ phoneNumber: '010-3333-4444' });
     }
     if (url === '/api/support') {
       supportReadCount += 1;
       return jsonResponse({
-        guardian: { guardianContactId: 1, phoneNumber: '010-3333-4444' },
-        customerCenterPhone: '1588-0000',
+        guardian: { phoneNumber: '010-3333-4444' },
+        customerCenter: { name: '고객센터', phoneNumber: '1588-0000' },
+    notificationRecipient: 'SELF',
       });
     }
     throw new Error(`예상하지 못한 요청: ${url}`);
@@ -495,7 +497,7 @@ test('부분 보호자 저장 상태는 고객센터를 포함한 전체 조회�
 
   assert.equal(supportReadCount, 1);
   assert.equal(store.supportLoaded, true);
-  assert.equal(store.support.customerCenterPhone, '1588-0000');
+  assert.equal(store.support.customerCenter.phoneNumber, '1588-0000');
 });
 
 test('인물 생성 성공 후 서버 목록을 재조회해 새 식별자를 반영한다', async () => {
@@ -617,28 +619,26 @@ test('인물 저장 중 기존 목록 조회가 끝나도 저장 후 목록을 �
   assert.equal(store.accountsByPerson[4][0].accountId, 6);
 });
 
-test('보호자 Mock 알림 결과를 한 이상거래에 한 번만 요청한다', async () => {
+test('보호자 실제 알림 성공은 같은 미결정 이상거래에서 재전송하지 않는다', async () => {
   const store = createStore();
+  store.currentUser = { userId: '1', consents: { guardianShareAgreed: true } };
   store.anomaly = { anomalyEventId: 22, riskLevel: 'HIGH' };
   let requestCount = 0;
   globalThis.fetch = async () => {
     requestCount += 1;
     return jsonResponse({
-      anomalyEventId: 22,
-      deliveryMode: 'MOCK',
-      result: 'MOCKED_NO_TOKEN',
-      actualAttempted: false,
-      actualSucceeded: false,
-      detail: '카카오 토큰이 없어 Mock 알림으로 대체했습니다.',
-      sentAt: null,
+      mode: 'ACTUAL',
+      message: '시연 알림을 내 카카오톡으로 보냈어요.',
+      recipient: 'SELF',
+      sentAt: '2026-09-08T10:20:00Z',
     });
   };
 
-  const first = await store.sendGuardianNotification();
-  const second = await store.sendGuardianNotification();
+  const first = await store.sendGuardianNotification(true);
+  const second = await store.sendGuardianNotification(true);
 
-  assert.equal(first.result, 'MOCKED_NO_TOKEN');
-  assert.equal(second.result, 'MOCKED_NO_TOKEN');
+  assert.equal(first.mode, 'ACTUAL');
+  assert.equal(second.mode, 'ACTUAL');
   assert.equal(requestCount, 1);
 });
 
@@ -654,7 +654,7 @@ test('보호자 공유 동의 거부 시 알림 API를 호출하지 않는다', 
     return jsonResponse({});
   };
 
-  await assert.rejects(store.sendGuardianNotification(), (error) => {
+  await assert.rejects(store.sendGuardianNotification(true), (error) => {
     assert.equal(error.code, 'GUARDIAN_SHARE_CONSENT_REQUIRED');
     return true;
   });
@@ -663,6 +663,7 @@ test('보호자 공유 동의 거부 시 알림 API를 호출하지 않는다', 
 
 test('보호자 알림 실패 후에도 같은 이상거래를 취소할 수 있다', async () => {
   const store = createStore();
+  store.currentUser = { userId: '1', consents: { guardianShareAgreed: true } };
   store.anomaly = {
     anomalyEventId: 25,
     riskLevel: 'HIGH',
@@ -684,7 +685,7 @@ test('보호자 알림 실패 후에도 같은 이상거래를 취소할 수 있
     throw new Error(`예상하지 못한 요청: ${url}`);
   };
 
-  await assert.rejects(store.sendGuardianNotification());
+  await assert.rejects(store.sendGuardianNotification(true));
   assert.equal(store.notificationResult, null);
   assert.equal(store.anomaly.anomalyEventId, 25);
 
@@ -741,7 +742,7 @@ test('MEDIUM 이상거래는 보호자 알림 API를 호출하지 않는다', as
     return jsonResponse({});
   };
 
-  const result = await store.sendGuardianNotification();
+  const result = await store.sendGuardianNotification(true);
 
   assert.equal(result, null);
   assert.equal(requestCount, 0);
@@ -749,18 +750,16 @@ test('MEDIUM 이상거래는 보호자 알림 API를 호출하지 않는다', as
 
 test('실제 알림의 발송 시각이 유효하지 않으면 성공으로 표시하지 않는다', async () => {
   const store = createStore();
+  store.currentUser = { userId: '1', consents: { guardianShareAgreed: true } };
   store.anomaly = { anomalyEventId: 24, riskLevel: 'HIGH' };
   globalThis.fetch = async () => jsonResponse({
-    anomalyEventId: 24,
-    deliveryMode: 'ACTUAL',
-    result: 'SENT',
-    actualAttempted: true,
-    actualSucceeded: true,
-    detail: '발송 완료',
+    mode: 'ACTUAL',
+    message: '발송 완료',
+    recipient: 'SELF',
     sentAt: 'not-a-date',
   });
 
-  await assert.rejects(store.sendGuardianNotification(), (error) => {
+  await assert.rejects(store.sendGuardianNotification(true), (error) => {
     assert.equal(error.code, 'INVALID_RESPONSE');
     return true;
   });

@@ -1,9 +1,12 @@
 package com.bestfriend.danjjak.support.service;
 
-/**
- * 본인 계정 메시지 전송 제공사의 협력 계약을 배치할 인터페이스.
- * 협력: KakaoMemoMessageClient, GuardianNotificationService.
- * 근거: FR-042, NFR-010. <a href="../../../../../../../../../docs/specs/requirements/fds-guardian.md">상세 명세</a>.
- */
 public interface KakaoMessageClient {
+
+    String RESULT_UNKNOWN = "KAKAO_RESULT_UNKNOWN";
+    String NOT_CONFIGURED = "KAKAO_NOT_CONFIGURED";
+    String REQUEST_NOT_SENT = "KAKAO_REQUEST_NOT_SENT";
+
+    KakaoSendResult sendToMe(String accessToken, String message);
+
+    record KakaoSendResult(boolean success, Integer httpStatus, String detail) {}
 }

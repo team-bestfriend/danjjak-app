@@ -34,10 +34,12 @@ export const accountApi = {
 export const transferApi = {
   createTransfer: (payload) => request('/api/transfers', {
     method: 'POST',
+    headers: csrfHeaders(),
     body: JSON.stringify(payload),
   }),
   resolveAnomaly: (anomalyEventId, payload) => request(`/api/anomaly-events/${anomalyEventId}/resolve`, {
     method: 'POST',
+    headers: csrfHeaders(),
     body: JSON.stringify(payload),
   }),
 };
@@ -46,9 +48,12 @@ export const supportApi = {
   getSupport: () => request('/api/support'),
   updateGuardian: (phoneNumber) => request('/api/support/guardian', {
     method: 'PUT',
+    headers: csrfHeaders(),
     body: JSON.stringify({ phoneNumber }),
   }),
-  notifyGuardian: (anomalyEventId) => request(`/api/anomaly-events/${anomalyEventId}/guardian-notification`, {
+  notifyGuardian: (anomalyEventId, confirmedSelfDemo) => request(`/api/anomaly-events/${anomalyEventId}/guardian-notification`, {
     method: 'POST',
+    headers: csrfHeaders(),
+    body: JSON.stringify({ confirmedSelfDemo }),
   }),
 };

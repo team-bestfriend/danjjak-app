@@ -174,7 +174,7 @@ test('설정: 기본 없음 설명·저장 실패 선택 유지·중복 방지·
   globalThis.fetch = async (url, options) => {
     if (url === '/api/accounts') return response(accounts);
     if (url === '/api/registered-persons') return response([]);
-    if (url === '/api/support') return response({ guardian: null });
+    if (url === '/api/support') return response({ guardian: { phoneNumber: null }, customerCenter: { name: '고객센터', phoneNumber: '1588-0000' }, notificationRecipient: 'SELF' });
     if (url === '/api/accounts/default') {
       saves += 1;
       assert.equal(options.headers['X-CSRF-Token'], 'default-csrf');

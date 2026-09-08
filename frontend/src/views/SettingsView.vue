@@ -86,10 +86,16 @@
             <p className="font-semibold text-[#111827] mb-1" style="font-size: 19px;">보호자 전화번호 등록</p>
             <p className="text-[#6B7280] mb-3" style="font-size: 15px;">이상 거래 화면의 보호자 전화 연결에 사용해요.</p>
             <p v-if="store.supportLoading" className="text-[#6B7280] mb-3">보호자 번호를 불러오고 있어요…</p>
-            <p v-else-if="!store.supportError && !guardianPhone" className="text-[#6B7280] mb-3">등록된 보호자 번호가 없어요. 아래에 번호를 입력해 주세요.</p>
+            <p v-else-if="store.supportLoaded && !store.support?.guardian?.phoneNumber" className="text-[#6B7280] mb-3">등록된 보호자 번호가 없어요. 아래에 번호를 입력해 주세요.</p>
+            <p v-if="store.support?.guardian?.phoneNumber" class="break-all text-[20px]">저장된 번호: {{ store.support.guardian.phoneNumber }}</p>
+            <button v-if="store.supportError" type="button" class="min-h-[48px] underline" :disabled="store.supportLoading" @click="store.loadSupport(true)">번호 다시 불러오기</button>
             <div className="flex gap-2 w-full">
               <input
                 v-model="guardianPhone"
+                @input="editGuardian"
+                :aria-invalid="Boolean(guardianError || store.guardianSaveError)"
+                aria-describedby="guardian-phone-help"
+                :disabled="store.guardianSaving"
                 type="tel"
                 aria-label="보호자 전화번호"
                 placeholder="010-0000-0000"
@@ -98,14 +104,15 @@
                 style="min-height: 54px; font-size: 17px;"
               />
               <button
-                :disabled="store.guardianSaving || store.supportLoading"
+                :disabled="store.guardianSaving"
                 @click="saveGuardian"
                 className="rounded-[14px] bg-[#FFBC00] text-[#111827] font-semibold flex-shrink-0 px-5 disabled:opacity-50"
                 style="height: 54px; font-size: 17px;"
               >{{ store.guardianSaving ? '저장 중…' : '저장' }}</button>
             </div>
-            <p v-if="guardianError || store.supportError" className="text-[#B91C1C] mt-2" role="alert">{{ guardianError || store.supportError }}</p>
-            <p v-if="guardianSaved" className="text-[#166534] mt-2">저장한 번호를 보호자 전화 연결에 반영했어요.</p>
+            <p id="guardian-phone-help" class="text-[16px] mt-2">숫자와 숫자 묶음 사이 하이픈으로 5~30자를 입력해 주세요. 카카오톡은 로그인한 본인에게 보내는 시연이며 이 번호를 수신자로 사용하지 않아요.</p>
+            <p v-if="guardianError || store.guardianSaveError || store.supportError" className="text-[#B91C1C] mt-2" role="alert">{{ guardianError || store.guardianSaveError || store.supportError }}</p>
+            <p v-if="guardianSaved" role="status" className="text-[#166534] mt-2">저장한 번호를 보호자 전화 연결에 반영했어요.</p>
           </div>
         </Card>
       </div>
@@ -207,7 +214,8 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
+import { isPhoneNumber } from '../features/support/contact.js';
 import { useAppStore } from '../stores/appStore';
 import SafeArea from '../components/common/SafeArea.vue';
 import Card from '../components/common/Card.vue';
@@ -224,7 +232,25 @@ const voiceMode = ref("tts");
 const settingsSaving = ref(false);
 const settingsError = ref("");
 const settingsSaved = ref(false);
-const guardianPhone = ref("");
+const guardianPhone = ref(store.support?.guardian?.phoneNumber ?? '');
+const guardianDirty = ref(false);
+let active = true;
+onBeforeUnmount(() => { active = false; });
+watch(() => store.supportSessionVersion, () => {
+  guardianPhone.value = '';
+  guardianDirty.value = false;
+  guardianError.value = '';
+  guardianSaved.value = false;
+}, { flush: 'sync' });
+watch(() => store.support?.guardian?.phoneNumber, (phone) => {
+  if (!guardianDirty.value) guardianPhone.value = phone ?? '';
+});
+function editGuardian() {
+  guardianDirty.value = true;
+  guardianSaved.value = false;
+  guardianError.value = '';
+  store.guardianSaveError = '';
+}
 const guardianError = ref("");
 const guardianSaved = ref(false);
 const defaultSaved = ref(false);
@@ -246,7 +272,6 @@ onMounted(async () => {
   guideSpeed.value = String(settings?.voiceSpeed ?? 'NORMAL').toLowerCase();
   voiceMode.value = String(settings?.guideVoiceType ?? 'TTS').toLowerCase();
   await Promise.all([store.loadSupport(), store.loadFinancialData(), store.loadOwnedAccounts(true)]);
-  guardianPhone.value = store.support?.guardian?.phoneNumber ?? '';
 });
 
 async function saveSettings() {
@@ -269,18 +294,25 @@ async function saveSettings() {
 }
 
 async function saveGuardian() {
+  if (store.guardianSaving) return;
   guardianError.value = '';
   guardianSaved.value = false;
-  if (!/^[0-9-]{8,20}$/.test(guardianPhone.value)) {
-    guardianError.value = '전화번호는 숫자와 하이픈을 포함해 8~20자로 입력해 주세요.';
+  if (!isPhoneNumber(guardianPhone.value)) {
+    guardianError.value = '전화번호는 5~30자로, 숫자 묶음 사이에 하이픈 하나만 입력해 주세요.';
     return;
   }
+  const version = store.supportSessionVersion;
+  const draft = guardianPhone.value;
   try {
-    const saved = await store.saveGuardian(guardianPhone.value);
-    guardianPhone.value = saved.phoneNumber;
-    guardianSaved.value = true;
+    const saved = await store.saveGuardian(draft);
+    if (!active || version !== store.supportSessionVersion || !saved) return;
+    if (guardianPhone.value === draft) {
+      guardianPhone.value = saved.phoneNumber;
+      guardianDirty.value = false;
+      guardianSaved.value = true;
+    }
   } catch {
-    // 저장소가 서버 오류를 화면용 문구로 보관한다.
+    // 오류 시 입력 초안을 유지하고 저장소의 오류 문구를 표시한다.
   }
 }
 </script>

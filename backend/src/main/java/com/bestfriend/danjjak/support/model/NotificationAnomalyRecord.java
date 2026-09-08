@@ -15,4 +15,9 @@ public class NotificationAnomalyRecord {
     private String riskLevel;
     private String finalAction;
     private LocalDateTime guardianNotifiedAt;
+    private String recipientBankName;
+    private String recipientAccountNumber;
+    private boolean highAmountDetected;
+    private boolean repeatedTransferDetected;
+    private int recentTransferCount;
 }

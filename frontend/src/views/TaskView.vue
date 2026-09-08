@@ -120,14 +120,14 @@
         <p class="text-[#991B1B]">{{ store.supportError }}</p>
         <Btn variant="secondary" @click="store.loadSupport(true)">다시 시도</Btn>
       </div>
-      <Card v-else-if="store.support?.customerCenterPhone" class="p-6 text-center space-y-4">
+      <Card v-else-if="store.support?.customerCenter?.phoneNumber" class="p-6 text-center space-y-4">
         <div class="w-16 h-16 mx-auto rounded-full bg-[#DBEAFE] flex items-center justify-center text-[#2563EB]"><Ic name="Phone" /></div>
         <div>
-          <p class="text-[#6B7280]">단짝 고객센터</p>
-          <p class="font-black text-[#111827] text-[28px] mt-1">{{ store.support.customerCenterPhone }}</p>
+          <p class="text-[#6B7280]">{{ store.support.customerCenter.name }}</p>
+          <p class="font-black text-[#111827] text-[28px] mt-1">{{ store.support.customerCenter.phoneNumber }}</p>
         </div>
         <a
-          :href="'tel:' + store.support.customerCenterPhone"
+          :href="telephoneHref(store.support.customerCenter.phoneNumber)"
           @click="completeSupportTask"
           class="flex min-h-[58px] w-full items-center justify-center rounded-[18px] bg-[#2563EB] px-5 text-[18px] font-bold text-white"
         >전화 연결하기</a>
@@ -155,6 +155,7 @@
 </template>
 
 <script setup>
+import { telephoneHref } from '../features/support/contact.js';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useAppStore } from '../stores/appStore';
 import SafeArea from '../components/common/SafeArea.vue';

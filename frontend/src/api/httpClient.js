@@ -1,7 +1,9 @@
 const configuredBaseUrl = import.meta.env?.VITE_API_BASE_URL?.replace(/\/$/, '') ?? '';
 let csrfToken = null;
+let sessionVersion = 0;
 
 export function setCsrfToken(token) {
+  sessionVersion += 1;
   csrfToken = typeof token === 'string' && token ? token : null;
 }
 
@@ -23,6 +25,7 @@ export class ApiError extends Error {
 }
 
 export async function request(path, options = {}) {
+  const requestSessionVersion = sessionVersion;
   const { headers: optionHeaders, ...requestOptions } = options;
   const response = await fetch(apiUrl(path), {
     credentials: 'include',
@@ -46,7 +49,7 @@ export async function request(path, options = {}) {
       errorBody?.message ?? '서버 요청을 처리하지 못했습니다.',
       response.status,
     );
-    if (response.status === 401) {
+    if (response.status === 401 && requestSessionVersion === sessionVersion) {
       setCsrfToken(null);
       if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('danjjak:session-expired'));
     }

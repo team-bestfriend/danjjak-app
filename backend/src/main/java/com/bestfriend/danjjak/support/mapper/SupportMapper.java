@@ -9,6 +9,8 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface SupportMapper {
 
+    Boolean findConsentCompleted(long userId);
+
     boolean hasGuardianShareConsent(long userId);
 
     GuardianContactRecord findGuardian(long userId);
@@ -17,6 +19,9 @@ public interface SupportMapper {
             @Param("userId") long userId, @Param("phoneNumber") String phoneNumber);
 
     NotificationAnomalyRecord findHighAnomaly(
+            @Param("userId") long userId, @Param("anomalyEventId") long anomalyEventId);
+
+    NotificationAnomalyRecord findAnomalyForUpdate(
             @Param("userId") long userId, @Param("anomalyEventId") long anomalyEventId);
 
     int markGuardianNotified(

@@ -9,6 +9,7 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 @ComponentScan(basePackages = {
         "com.bestfriend.danjjak.health.controller",
         "com.bestfriend.danjjak.account.controller",
+        "com.bestfriend.danjjak.support.controller",
         "com.bestfriend.danjjak.common.error"
 })
 public class WebConfig {

@@ -17,7 +17,18 @@
         <result property="riskLevel" column="risk_level"/>
         <result property="finalAction" column="final_action"/>
         <result property="guardianNotifiedAt" column="guardian_notified_at"/>
+        <result property="recipientBankName" column="recipient_bank_name"/>
+        <result property="recipientAccountNumber" column="recipient_account_number"/>
+        <result property="highAmountDetected" column="high_amount_detected"/>
+        <result property="repeatedTransferDetected" column="repeated_transfer_detected"/>
+        <result property="recentTransferCount" column="recent_transfer_count"/>
     </resultMap>
+
+    <select id="findConsentCompleted" resultType="java.lang.Boolean">
+        SELECT consent_completed
+        FROM users
+        WHERE user_id = #{userId}
+    </select>
 
     <select id="hasGuardianShareConsent" resultType="boolean">
         SELECT guardian_share_agreed
@@ -50,6 +61,24 @@
         WHERE user_id = #{userId}
           AND anomaly_event_id = #{anomalyEventId}
           AND risk_level = 'HIGH'
+    </select>
+
+    <select id="findAnomalyForUpdate" resultMap="notificationAnomalyMap">
+        SELECT anomaly_event_id,
+               recipient_name,
+               recipient_bank_name,
+               recipient_account_number,
+               amount,
+               high_amount_detected,
+               repeated_transfer_detected,
+               recent_transfer_count,
+               risk_level,
+               final_action,
+               guardian_notified_at
+        FROM anomaly_events
+        WHERE user_id = #{userId}
+          AND anomaly_event_id = #{anomalyEventId}
+        FOR UPDATE
     </select>
 
     <update id="markGuardianNotified">
