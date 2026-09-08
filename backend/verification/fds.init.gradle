@@ -1,0 +1,16 @@
+// 전체 앱 빌드와 별도로 FDS 정책·실제 Mapper만 검증한다. WAR/HTTP 검증을 대체하지 않는다.
+gradle.projectsEvaluated {
+    rootProject {
+        layout.buildDirectory.set(layout.projectDirectory.dir('build/fds-verification'))
+        sourceSets.main.java.setIncludes([
+            'com/bestfriend/danjjak/transfer/service/FdsEvaluator.java',
+            'com/bestfriend/danjjak/transfer/mapper/TransferMapper.java',
+            'com/bestfriend/danjjak/transfer/model/*.java'
+        ])
+        sourceSets.main.resources.setIncludes(['mapper/transfer/TransferMapper.xml'])
+        sourceSets.test.java.setIncludes([
+            'com/bestfriend/danjjak/transfer/service/FdsEvaluatorTest.java',
+            'com/bestfriend/danjjak/transfer/mapper/FdsPersistenceIntegrationTest.java'
+        ])
+    }
+}
