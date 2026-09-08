@@ -18,7 +18,6 @@
           <div className="w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0" style="background: #FFF3CC; border: 2px solid #FFBC00; font-size: 32px;">👵</div>
           <div className="flex-1">
             <p className="font-bold text-[#111827]" style="font-size: 23px;">{{ store.userName }}</p>
-            <p className="text-[#6B7280] mt-0.5" style="font-size: 15px;">단짝 시연 사용자</p>
           </div>
         </div>
       </Card>
@@ -111,6 +110,44 @@
         </Card>
       </div>
 
+      <section aria-labelledby="owned-accounts-title" class="space-y-3">
+        <h2 id="owned-accounts-title" class="text-[22px] font-bold">내 계좌 관리</h2>
+        <p v-if="store.ownedAccountsLoading" role="status">내 계좌를 불러오고 있어요.</p>
+        <div v-else-if="store.ownedAccountsError" class="space-y-3">
+          <p role="alert" class="text-[#B91C1C]">{{ store.ownedAccountsError }}</p>
+          <Btn variant="secondary" @click="store.loadOwnedAccounts(true)">다시 시도</Btn>
+        </div>
+        <template v-else-if="store.ownedAccountsLoaded">
+          <p v-if="!store.ownedAccounts.length">아직 불러온 내 계좌가 없어요. 연습용 계좌를 불러와 주세요.</p>
+          <template v-else>
+            <p v-if="store.financeWarning" role="status">{{ store.financeWarning }}</p>
+            <fieldset :disabled="store.accountSaving" class="space-y-3">
+              <legend class="mb-3 text-[20px] font-semibold">기본으로 사용할 내 계좌</legend>
+              <label v-for="account in store.ownedAccounts" :key="account.accountId"
+                class="flex min-h-[112px] items-start gap-3 rounded-[20px] border-2 bg-white p-4"
+                :class="store.defaultAccountSelection === account.accountId ? 'border-[#FFBC00]' : 'border-[#E5E7EB]'">
+                <input v-model="store.defaultAccountSelection" type="radio" name="default-account" :value="account.accountId"
+                  :disabled="store.accountSaving" class="mt-1 h-6 w-6 shrink-0" @change="defaultSaved = false" />
+                <span class="min-w-0 break-words text-[16px]">
+                  <span class="block text-[20px] font-bold">{{ account.bankName }} <span v-if="account.primary">· 기본</span></span>
+                  <span v-if="account.accountAlias" class="block">{{ account.accountAlias }}</span>
+                  <span class="block">{{ account.maskedAccountNumber }}</span>
+                  <span class="block">잔액 {{ account.balance.toLocaleString('ko-KR') }}원</span>
+                  <span v-if="store.defaultAccountSelection === account.accountId" class="block font-bold">✓ 선택됨</span>
+                </span>
+              </label>
+            </fieldset>
+            <p class="text-[16px]">이번 송금에서 고른 계좌는 저장된 기본 계좌를 바꾸지 않아요.</p>
+            <Btn :disabled="store.accountSaving || !store.defaultAccountSelection" @click="saveDefault">
+              {{ store.accountSaving ? '저장 중…' : '기본 계좌 저장' }}
+            </Btn>
+            <p v-if="defaultSaved" role="status">기본 계좌를 저장했어요.</p>
+          </template>
+        </template>
+        <p v-if="store.accountSaveError" role="alert" class="text-[#B91C1C]">{{ store.accountSaveError }}</p>
+        <Btn variant="secondary" @click="store.navigate('owned-account-import')">계좌 불러오기</Btn>
+      </section>
+
       <!-- 계좌/사람 관리 -->
       <div>
         <p className="font-bold text-[#9CA3AF] uppercase tracking-wide mb-3 px-1" style="font-size: 13px;">계좌 관리</p>
@@ -162,6 +199,7 @@
       >
         {{ store.logoutPending ? '로그아웃 중…' : '로그아웃' }}
       </button>
+      <p v-if="store.authError" role="alert" class="text-[#B91C1C]">{{ store.authError }}</p>
     </div>
 
     <NavBar active="settings" :onSelect="store.navTo" />
@@ -176,6 +214,7 @@ import Card from '../components/common/Card.vue';
 import Ic from '../components/common/Ic.vue';
 import NavBar from '../components/common/NavBar.vue';
 import SegControl from '../components/common/SegControl.vue';
+import Btn from '../components/common/Btn.vue';
 
 const store = useAppStore();
 
@@ -188,9 +227,15 @@ const settingsSaved = ref(false);
 const guardianPhone = ref("");
 const guardianError = ref("");
 const guardianSaved = ref(false);
+const defaultSaved = ref(false);
+
+async function saveDefault() {
+  defaultSaved.value = false;
+  defaultSaved.value = await store.saveDefaultAccount();
+}
 
 const serviceItems = [
-  { label: "서비스 이용방법", icon: "📖", screen: null },
+  { label: "서비스 이용방법", icon: "📖", screen: 'service-help' },
   { label: "고객센터 연결", icon: "📞", screen: "task-6" },
   { label: "개인정보 처리방침", icon: "🔒", screen: null }
 ];
@@ -200,7 +245,7 @@ onMounted(async () => {
   fontSize.value = String(settings?.fontSize ?? 'NORMAL').toLowerCase();
   guideSpeed.value = String(settings?.voiceSpeed ?? 'NORMAL').toLowerCase();
   voiceMode.value = String(settings?.guideVoiceType ?? 'TTS').toLowerCase();
-  await Promise.all([store.loadSupport(), store.loadFinancialData()]);
+  await Promise.all([store.loadSupport(), store.loadFinancialData(), store.loadOwnedAccounts(true)]);
   guardianPhone.value = store.support?.guardian?.phoneNumber ?? '';
 });
 

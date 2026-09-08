@@ -245,7 +245,7 @@ async function prepareInquiry(force = false) {
 }
 
 async function changeAccount(event) {
-  const accountId = Number(event.target.value);
+  const accountId = store.ownedAccounts.find((account) => String(account.accountId) === event.target.value)?.accountId;
   await store.loadInquiry(accountId, taskConfig.value?.category ?? null);
 }
 

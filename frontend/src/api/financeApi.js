@@ -1,7 +1,18 @@
-import { request } from './httpClient.js';
+import { csrfHeaders, request } from './httpClient.js';
 
 export const accountApi = {
   getOwnedAccounts: () => request('/api/accounts'),
+  getImportCandidates: () => request('/api/accounts/import-candidates'),
+  importAccounts: (accountIds) => request('/api/accounts/import', {
+    method: 'POST',
+    headers: csrfHeaders(),
+    body: JSON.stringify({ accountIds }),
+  }),
+  setDefaultAccount: (accountId) => request('/api/accounts/default', {
+    method: 'PUT',
+    headers: csrfHeaders(),
+    body: JSON.stringify({ accountId }),
+  }),
   getBalance: (accountId) => request(`/api/accounts/${accountId}/balance`),
   getTransactions: (accountId, category) => {
     const query = category ? `?category=${encodeURIComponent(category)}` : '';
@@ -10,10 +21,12 @@ export const accountApi = {
   getRegisteredPersons: () => request('/api/registered-persons'),
   createRegisteredPerson: (payload) => request('/api/registered-persons', {
     method: 'POST',
+    headers: csrfHeaders(),
     body: JSON.stringify(payload),
   }),
   updateRegisteredPerson: (registeredPersonId, payload) => request(`/api/registered-persons/${registeredPersonId}`, {
     method: 'PUT',
+    headers: csrfHeaders(),
     body: JSON.stringify(payload),
   }),
 };

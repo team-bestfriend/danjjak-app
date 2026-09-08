@@ -14,6 +14,17 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface AccountMapper {
 
+    Boolean findAccountConsent(long userId);
+
+    Boolean lockUserForAccountUpdate(long userId);
+
+    int clearOwnedAccountDefaults(long userId);
+
+    int clearUnimportedAccountDefaults(long userId);
+
+    int setOwnedAccountDefault(
+            @Param("userId") long userId, @Param("accountId") long accountId);
+
     List<AccountRecord> findOwnedAccounts(long userId);
 
     List<AccountRecord> findOwnedAccountCandidates(long userId);

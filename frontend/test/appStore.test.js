@@ -877,6 +877,8 @@ test('늦게 끝난 이전 계좌 조회가 현재 선택 결과를 덮지 않�
 
 test('패턴은 명시적 시작 요청 뒤에만 실행 식별자를 사용한다', async () => {
   const store = createStore();
+  store.ownedAccounts = [{ accountId: '1', primary: true }];
+  store.ownedAccountsLoaded = true;
   const requests = [];
   const detail = {
     patternId: 2,
@@ -932,6 +934,8 @@ test('패턴은 명시적 시작 요청 뒤에만 실행 식별자를 사용한�
 
 test('이용 기록 거부 응답에서는 단계 로그 요청을 보내지 않는다', async () => {
   const store = createStore();
+  store.ownedAccounts = [{ accountId: '1', primary: true }];
+  store.ownedAccountsLoaded = true;
   const requests = [];
   const detail = {
     patternId: 4,
@@ -967,6 +971,8 @@ test('이용 기록 거부 응답에서는 단계 로그 요청을 보내지 않
 
 test('패턴 단계 밖으로 이동하면 현재 방문에 경로 이탈을 저장한다', async () => {
   const store = createStore();
+  store.ownedAccounts = [{ accountId: '1', primary: true }];
+  store.ownedAccountsLoaded = true;
   const updateBodies = [];
   const detail = {
     patternId: 2,

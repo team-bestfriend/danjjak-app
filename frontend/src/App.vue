@@ -118,7 +118,8 @@ const uiScale = computed(
     ] ?? 1,
 );
 const appShellStyle = computed(() => ({
-  width: `${390 / uiScale.value}px`,
+  width: `calc(100vw / ${uiScale.value})`,
+  maxWidth: `${390 / uiScale.value}px`,
   height: `${100 / uiScale.value}%`,
   transform: `scale(${uiScale.value})`,
   transformOrigin: "top center",

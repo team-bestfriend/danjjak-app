@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { authApi, userApi } from '../api/authApi.js';
 import { accountApi, supportApi, transferApi } from '../api/financeApi.js';
-import { ApiError } from '../api/httpClient.js';
+import { ApiError, setCsrfToken } from '../api/httpClient.js';
 import { patternApi } from '../api/patternApi.js';
 import { TASK_COLORS, reorderPatterns } from '../constants/data.js';
 import { currentRouteName, navigateBack, navigateTo, replaceWith } from '../router/navigation.js';
@@ -208,6 +208,20 @@ export const useAppStore = defineStore('app', () => {
   let patternStepSync = Promise.resolve();
 
   const ownedAccounts = ref([]);
+  const ownedAccountsLoaded = ref(false);
+  const ownedAccountsLoading = ref(false);
+  const ownedAccountsError = ref('');
+  const importCandidates = ref([]);
+  const candidatesLoaded = ref(false);
+  const candidatesLoading = ref(false);
+  const candidatesError = ref('');
+  const selectedImportAccountIds = ref([]);
+  const defaultAccountSelection = ref(null);
+  const accountSaving = ref(false);
+  const accountSaveError = ref('');
+  let pendingOwnedAccountsLoad = null;
+  let pendingCandidatesLoad = null;
+  let accountSessionVersion = 0;
   const people = ref([]);
   const accountsByPerson = ref({});
   const financeLoading = ref(false);
@@ -307,6 +321,23 @@ export const useAppStore = defineStore('app', () => {
   }
 
   function clearSession(message = '') {
+    setCsrfToken(null);
+    accountSessionVersion += 1;
+    pendingOwnedAccountsLoad = null;
+    pendingCandidatesLoad = null;
+    ownedAccountsLoaded.value = false;
+    ownedAccountsLoading.value = false;
+    ownedAccountsError.value = '';
+    importCandidates.value = [];
+    candidatesLoaded.value = false;
+    candidatesLoading.value = false;
+    candidatesError.value = '';
+    selectedImportAccountIds.value = [];
+    defaultAccountSelection.value = null;
+    accountSaving.value = false;
+    accountSaveError.value = '';
+    financeWarning.value = '';
+    selectedInquiryAccountId.value = null;
     currentUser.value = null;
     authStatus.value = 'anonymous';
     authError.value = '';
@@ -345,6 +376,7 @@ export const useAppStore = defineStore('app', () => {
       try {
         const response = await authApi.getSession();
         if (response?.authenticated && response.user) {
+          setCsrfToken(response.csrfToken);
           applyCurrentUser(response.user);
           return true;
         }
@@ -377,6 +409,7 @@ export const useAppStore = defineStore('app', () => {
     try {
       const response = await authApi.startDevSession();
       if (!response?.authenticated || !response.user) throw invalidResponse();
+      setCsrfToken(response.csrfToken);
       applyCurrentUser(response.user);
       await replaceWith('home');
       return true;
@@ -557,11 +590,165 @@ export const useAppStore = defineStore('app', () => {
 
   function mapOwnedAccount(account) {
     return {
-      ...account,
+      accountId: account.accountId,
+      bankCode: account.bankCode,
+      bankName: account.bankName,
+      accountAlias: account.accountAlias,
+      maskedAccountNumber: account.maskedAccountNumber,
+      balance: account.balance,
+      primary: account.primary,
       bank: account.bankName,
       nickname: account.accountAlias,
-      masked: maskAccountNumber(account.accountNumber),
+      masked: account.maskedAccountNumber,
     };
+  }
+
+  function applyOwnedAccounts(rows) {
+    if (!Array.isArray(rows) || rows.some((row) => !row?.accountId)) throw invalidResponse();
+    ownedAccounts.value = rows.map(mapOwnedAccount);
+    financeWarning.value = rows.length && !rows.some((account) => account.primary)
+      ? '기본 계좌가 지정되지 않아 첫 번째 본인 계좌를 선택했어요.' : '';
+    const contains = (id) => rows.some((account) => account.accountId === id);
+    if (!contains(selectedSourceAccountId.value)) selectedSourceAccountId.value = defaultOwnedAccount.value?.accountId ?? null;
+    if (!contains(selectedInquiryAccountId.value)) selectedInquiryAccountId.value = defaultOwnedAccount.value?.accountId ?? null;
+    if (!contains(defaultAccountSelection.value)) defaultAccountSelection.value = defaultOwnedAccount.value?.accountId ?? null;
+    ownedAccountsLoaded.value = true;
+  }
+
+  function loadOwnedAccounts(force = false) {
+    if (pendingOwnedAccountsLoad) return pendingOwnedAccountsLoad;
+    if (ownedAccountsLoaded.value && !force) return Promise.resolve(true);
+    const version = accountSessionVersion;
+    ownedAccountsLoading.value = true;
+    ownedAccountsError.value = '';
+    pendingOwnedAccountsLoad = (async () => {
+      try {
+        const rows = await accountApi.getOwnedAccounts();
+        if (version !== accountSessionVersion) return false;
+        applyOwnedAccounts(rows);
+        return true;
+      } catch {
+        if (version === accountSessionVersion) {
+          ownedAccountsLoaded.value = false;
+          ownedAccounts.value = [];
+          selectedSourceAccountId.value = null;
+          selectedInquiryAccountId.value = null;
+          financeWarning.value = '';
+          ownedAccountsError.value = '내 계좌를 불러오지 못했어요. 다시 시도해 주세요.';
+        }
+        return false;
+      } finally {
+        if (version === accountSessionVersion) {
+          ownedAccountsLoading.value = false;
+          pendingOwnedAccountsLoad = null;
+        }
+      }
+    })();
+    return pendingOwnedAccountsLoad;
+  }
+
+  function loadImportCandidates() {
+    if (pendingCandidatesLoad) return pendingCandidatesLoad;
+    const version = accountSessionVersion;
+    candidatesLoading.value = true;
+    candidatesError.value = '';
+    pendingCandidatesLoad = (async () => {
+      try {
+        const rows = await accountApi.getImportCandidates();
+        if (version !== accountSessionVersion) return false;
+        if (!Array.isArray(rows)) throw invalidResponse();
+        importCandidates.value = rows;
+        const remaining = selectedImportAccountIds.value.filter((id) => rows.some((row) => row.accountId === id && row.available));
+        if (remaining.length !== selectedImportAccountIds.value.length) {
+          selectedImportAccountIds.value = remaining;
+          accountSaveError.value = '불러올 수 있는 계좌가 바뀌었어요. 준비 상태를 확인하고 다시 선택해 주세요.';
+        }
+        candidatesLoaded.value = true;
+        return true;
+      } catch {
+        if (version === accountSessionVersion) {
+          candidatesLoaded.value = false;
+          candidatesError.value = '불러올 계좌를 확인하지 못했어요. 다시 시도해 주세요.';
+        }
+        return false;
+      } finally {
+        if (version === accountSessionVersion) {
+          candidatesLoading.value = false;
+          pendingCandidatesLoad = null;
+        }
+      }
+    })();
+    return pendingCandidatesLoad;
+  }
+
+  async function importOwnedAccounts() {
+    if (accountSaving.value) return false;
+    accountSaveError.value = '';
+    const ids = [...new Set(selectedImportAccountIds.value)];
+    if (candidatesLoading.value || !candidatesLoaded.value || !ids.length || ids.some((id) =>
+      !importCandidates.value.some((candidate) => candidate.accountId === id && candidate.available))) {
+      accountSaveError.value = '불러올 수 있는 계좌를 선택해 주세요. 후보가 바뀌었다면 다시 선택해 주세요.';
+      return false;
+    }
+    const version = accountSessionVersion;
+    accountSaving.value = true;
+    try {
+      if (pendingOwnedAccountsLoad) await pendingOwnedAccountsLoad;
+      if (version !== accountSessionVersion) return false;
+      await accountApi.importAccounts(ids.map(String));
+      if (version !== accountSessionVersion) return false;
+      if (pendingOwnedAccountsLoad) await pendingOwnedAccountsLoad;
+      if (version !== accountSessionVersion) return false;
+      // 가져오기 응답은 일부 계좌일 수 있어 저장된 전체 목록을 다시 확인한다.
+      if (!(await loadOwnedAccounts(true))) throw invalidResponse();
+      if (version !== accountSessionVersion) return false;
+      if (!ids.every((id) => ownedAccounts.value.some((account) => String(account.accountId) === String(id)))) throw invalidResponse();
+      selectedImportAccountIds.value = [];
+      importCandidates.value = [];
+      candidatesLoaded.value = false;
+      return true;
+    } catch {
+      if (version === accountSessionVersion) accountSaveError.value = '계좌 불러오기 결과를 확인하지 못했어요. 선택한 계좌로 다시 시도해 주세요. 이미 저장된 계좌는 중복 추가되지 않아요.';
+      return false;
+    } finally {
+      if (version === accountSessionVersion) accountSaving.value = false;
+    }
+  }
+
+  async function saveDefaultAccount() {
+    if (accountSaving.value) return false;
+    accountSaveError.value = '';
+    const id = defaultAccountSelection.value;
+    if (!ownedAccountsLoaded.value || !ownedAccounts.value.some((account) => account.accountId === id)) {
+      accountSaveError.value = '기본으로 사용할 내 계좌를 선택해 주세요.';
+      return false;
+    }
+    const version = accountSessionVersion;
+    accountSaving.value = true;
+    try {
+      if (pendingOwnedAccountsLoad) await pendingOwnedAccountsLoad;
+      if (version !== accountSessionVersion) return false;
+      const saved = await accountApi.setDefaultAccount(String(id));
+      if (version !== accountSessionVersion) return false;
+      if (pendingOwnedAccountsLoad) await pendingOwnedAccountsLoad;
+      if (version !== accountSessionVersion) return false;
+      if (String(saved?.accountId) !== String(id) || saved.primary !== true) throw invalidResponse();
+      // 화면 이동 중 목록이 비워질 수 있어 PUT 응답만으로 준비 상태를 복원하지 않는다.
+      if (!(await loadOwnedAccounts(true))) throw invalidResponse();
+      if (version !== accountSessionVersion) return false;
+      const confirmed = ownedAccounts.value.find((account) => String(account.accountId) === String(id));
+      if (!confirmed?.primary) throw invalidResponse();
+      defaultAccountSelection.value = confirmed.accountId;
+      return true;
+    } catch {
+      if (version === accountSessionVersion) {
+        defaultAccountSelection.value = id;
+        accountSaveError.value = '기본 계좌를 저장하지 못했어요. 선택한 계좌로 다시 시도해 주세요.';
+      }
+      return false;
+    } finally {
+      if (version === accountSessionVersion) accountSaving.value = false;
+    }
   }
 
   function mapRegisteredPerson(person) {
@@ -570,17 +757,18 @@ export const useAppStore = defineStore('app', () => {
       name: person.name,
       emoji: person.relationship === '아들' ? '👨' : person.relationship === '딸' ? '👩' : '👤',
       relation: person.relationship,
-      accounts: person.account ? 1 : 0,
+      accounts: person.accountCount ?? person.accounts?.length ?? (person.account ? 1 : 0),
     };
   }
 
   function mapRecipientAccount(account) {
     return {
       ...account,
-      id: account.accountId,
+      accountId: account.recipientAccountId ?? account.accountId,
+      id: account.recipientAccountId ?? account.accountId,
       bank: account.bankName,
       nickname: account.accountAlias,
-      masked: maskAccountNumber(account.accountNumber),
+      masked: account.maskedAccountNumber ?? maskAccountNumber(account.accountNumber),
     };
   }
 
@@ -590,20 +778,16 @@ export const useAppStore = defineStore('app', () => {
     pendingFinancialDataLoad = (async () => {
       financeLoading.value = true;
       financeError.value = '';
-      financeWarning.value = '';
       try {
-        const [accountRows, personRows] = await Promise.all([
-          accountApi.getOwnedAccounts(),
+        const [accountsLoaded, personRows] = await Promise.all([
+          loadOwnedAccounts(force),
           accountApi.getRegisteredPersons(),
         ]);
-        ownedAccounts.value = accountRows.map(mapOwnedAccount);
-        if (ownedAccounts.value.length > 0 && !ownedAccounts.value.some((account) => account.primary)) {
-          financeWarning.value = '기본 계좌가 지정되지 않아 첫 번째 본인 계좌를 선택했어요.';
-        }
+        if (!accountsLoaded) throw new Error(ownedAccountsError.value);
         people.value = personRows.map(mapRegisteredPerson);
         accountsByPerson.value = Object.fromEntries(personRows.map((person) => [
           person.registeredPersonId,
-          person.account ? [mapRecipientAccount(person.account)] : [],
+          (person.accounts ?? (person.account ? [person.account] : [])).map(mapRecipientAccount),
         ]));
         if (!ownedAccounts.value.some((account) => account.accountId === selectedInquiryAccountId.value)) {
           selectedInquiryAccountId.value = defaultOwnedAccount.value?.accountId ?? null;
@@ -615,18 +799,14 @@ export const useAppStore = defineStore('app', () => {
         return true;
       } catch (error) {
         financeError.value = toMessage(error, '계좌와 등록 인물을 불러오지 못했습니다.');
-        ownedAccounts.value = [];
         people.value = [];
         accountsByPerson.value = {};
-        selectedSourceAccountId.value = null;
-        selectedInquiryAccountId.value = null;
         if (!isNewAccountFlow.value) {
           selectedPersonId.value = null;
           selectedRecipientAccountId.value = null;
           selectedAccountMasked.value = null;
         }
         financeLoaded.value = false;
-        financeWarning.value = '';
         return false;
       } finally {
         financeLoading.value = false;
@@ -728,6 +908,13 @@ export const useAppStore = defineStore('app', () => {
     patternStarting.value = true;
     patternExecutionError.value = '';
     try {
+      if (pattern.patternType !== 'CUSTOMER_CENTER') {
+        if (!(await loadOwnedAccounts())) throw new ApiError('FINANCE_LOAD_FAILED', ownedAccountsError.value, 503);
+        if (!ownedAccounts.value.length) {
+          await navigateTo('owned-account-import');
+          return false;
+        }
+      }
       if (pattern.patternType === 'TRANSFER' && !(await loadFinancialData())) {
         throw new ApiError('FINANCE_LOAD_FAILED', financeError.value, 503);
       }
@@ -1043,6 +1230,21 @@ export const useAppStore = defineStore('app', () => {
     homePage,
     toast,
     ownedAccounts,
+    ownedAccountsLoaded,
+    ownedAccountsLoading,
+    ownedAccountsError,
+    importCandidates,
+    candidatesLoaded,
+    candidatesLoading,
+    candidatesError,
+    selectedImportAccountIds,
+    defaultAccountSelection,
+    accountSaving,
+    accountSaveError,
+    loadOwnedAccounts,
+    loadImportCandidates,
+    importOwnedAccounts,
+    saveDefaultAccount,
     people,
     accountsByPerson,
     financeLoading,

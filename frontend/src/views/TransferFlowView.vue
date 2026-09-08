@@ -16,6 +16,7 @@
       <div v-else-if="store.ownedAccounts.length === 0" class="rounded-2xl bg-white p-5 text-center space-y-2">
         <p class="font-bold text-[#111827] text-[19px]">사용할 수 있는 본인 계좌가 없어요.</p>
         <p class="text-[#6B7280]">계좌가 준비된 뒤 송금을 시작해 주세요.</p>
+        <Btn variant="secondary" @click="store.navigate('owned-account-import')">내 계좌 불러오기</Btn>
       </div>
       <div v-else class="space-y-3">
         <button
@@ -24,6 +25,7 @@
           :data-guide-target="store.selectedSourceAccountId === account.accountId ? 'source-account-list' : null"
           data-guide-exempt
           @click="store.selectedSourceAccountId = account.accountId"
+          :aria-pressed="store.selectedSourceAccountId === account.accountId"
           :class="[
             'w-full rounded-[20px] border-2 bg-white p-5 text-left min-h-[112px]',
             store.selectedSourceAccountId === account.accountId ? 'border-[#FFBC00]' : 'border-[#E5E7EB]'
@@ -37,6 +39,7 @@
             <span v-if="account.primary" class="rounded-full bg-[#FFF3CC] px-3 py-1 text-sm font-bold text-[#92650A]">기본</span>
           </div>
           <p class="font-black text-[#111827] text-[23px] mt-3">{{ formatWon(account.balance) }}</p>
+          <p v-if="store.selectedSourceAccountId === account.accountId" class="mt-2 font-bold">✓ 선택됨</p>
         </button>
       </div>
       <div v-if="patternTargetMissing" class="rounded-2xl border border-[#FCA5A5] bg-[#FEF2F2] p-4 space-y-3">

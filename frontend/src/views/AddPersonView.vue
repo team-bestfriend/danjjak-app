@@ -19,7 +19,7 @@ const store = useAppStore();
 const existingPerson = computed(() => {
   const person = store.people.find((item) => item.id === store.editingPersonId);
   if (!person) return null;
-  return { ...person, account: store.accountsByPerson[person.id]?.[0] ?? null };
+  return person;
 });
 
 onMounted(() => store.loadFinancialData());

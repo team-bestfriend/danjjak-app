@@ -36,6 +36,8 @@
       </p>
     </label>
 
+    <p v-if="existingPerson" class="rounded-xl bg-[#F3F4F6] p-4 text-[16px]">이름과 관계를 수정할 수 있어요. 기존 받는 계좌의 추가·수정은 아직 준비 중이에요.</p>
+    <template v-else>
     <div class="space-y-2">
       <p class="text-[14px] font-bold text-[#374151]">은행</p>
       <button
@@ -99,6 +101,7 @@
       />
     </label>
 
+    </template>
     <p v-if="formError" class="rounded-xl bg-[#FEF2F2] p-3 text-[#991B1B]" role="alert">{{ formError }}</p>
 
     <div class="flex gap-3 pt-2">
@@ -148,8 +151,8 @@ const selectedBank = computed(() => BANKS.find((bank) => bank.code === bankCode.
 const canSave = computed(() => (
   name.value.length > 0
   && relationship.value.length > 0
-  && Boolean(selectedBank.value)
-  && /^[0-9-]{8,50}$/.test(accountNumber.value)
+  && (props.existingPerson || (Boolean(selectedBank.value)
+    && /^[0-9-]{8,50}$/.test(accountNumber.value)))
 ));
 const fieldErrors = computed(() => ({
   name: touched.value.name && name.value.length === 0 ? '이름을 입력해 주세요.' : '',
@@ -170,14 +173,18 @@ async function handleSave() {
   saving.value = true;
   formError.value = '';
   try {
-    const saved = await store.saveRegisteredPerson({
+    const personFields = {
       name: name.value,
       relationship: relationship.value,
+    };
+    const payload = props.existingPerson ? personFields : {
+      ...personFields,
       bankCode: selectedBank.value.code,
       bankName: selectedBank.value.name,
       accountNumber: accountNumber.value,
       accountAlias: accountAlias.value || null,
-    }, props.existingPerson?.id ?? null);
+    };
+    const saved = await store.saveRegisteredPerson(payload, props.existingPerson?.id ?? null);
     emit('saved', saved.registeredPersonId);
   } catch (error) {
     formError.value = error instanceof ApiError
