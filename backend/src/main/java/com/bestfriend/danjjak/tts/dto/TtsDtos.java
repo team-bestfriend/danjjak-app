@@ -1,9 +1,30 @@
 package com.bestfriend.danjjak.tts.dto;
 
-/**
- * AI 음성 합성 요청과 재생 결과의 외부 표현 설계.
- * 협력: TtsController, TtsService.
- * 근거: FR-022. <a href="../../../../../../../../../docs/specs/requirements/guidance-voice.md">상세 명세</a>.
- */
-public class TtsDtos {
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
+
+public final class TtsDtos {
+
+    private TtsDtos() {}
+
+    public record TtsRequest(
+        @NotBlank @Size(max = 1000) String text,
+        @NotNull TtsSpeed speed) {}
+
+    public enum TtsSpeed {
+        SLOW(0.8),
+        NORMAL(1.0),
+        FAST(1.2);
+
+        private final double value;
+
+        TtsSpeed(double value) {
+            this.value = value;
+        }
+
+        public double getValue() {
+            return value;
+        }
+    }
 }
