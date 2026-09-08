@@ -1,9 +1,43 @@
 package com.bestfriend.danjjak.transfer.service;
 
-/**
- * 고액·완료 송금 반복 여부로 위험 단계와 전체 사유를 결정하는 도메인 역할.
- * 협력: TransferService, TransferMapper.
- * 근거: FR-035, FR-036, FR-037, FR-038. <a href="../../../../../../../../../docs/specs/requirements/fds-guardian.md">상세 명세</a>.
- */
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import org.springframework.stereotype.Component;
+
+@Component
 public class FdsEvaluator {
+
+    static final BigDecimal HIGH_AMOUNT_THRESHOLD = new BigDecimal("10000000");
+    static final int REPEATED_TRANSFER_THRESHOLD = 2;
+
+    public FdsResult evaluate(BigDecimal amount, int recentTransferCount) {
+        boolean highAmount = amount.compareTo(HIGH_AMOUNT_THRESHOLD) >= 0;
+        boolean repeatedTransfer = recentTransferCount >= REPEATED_TRANSFER_THRESHOLD;
+
+        List<String> reasons = new ArrayList<>();
+        if (highAmount) {
+            reasons.add("HIGH_AMOUNT");
+        }
+        if (repeatedTransfer) {
+            reasons.add("REPEATED_TRANSFER");
+        }
+
+        String riskLevel =
+                reasons.size() == 2 ? "HIGH" : reasons.size() == 1 ? "MEDIUM" : "NORMAL";
+        return new FdsResult(
+                riskLevel, List.copyOf(reasons), highAmount, repeatedTransfer, recentTransferCount);
+    }
+
+    public record FdsResult(
+            String riskLevel,
+            List<String> reasons,
+            boolean highAmountDetected,
+            boolean repeatedTransferDetected,
+            int recentTransferCount) {
+
+        public boolean anomalous() {
+            return !"NORMAL".equals(riskLevel);
+        }
+    }
 }
