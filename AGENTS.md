@@ -9,7 +9,18 @@
 - Korean: product/design prose, issue titles/bodies/templates, Java comments. English: agent routing/workflow instructions.
 - Keep rules in their owning specification; link instead of copying them into issues. Preserve FR/UX/NFR/SC/CH/D IDs and optional/proposal status.
 - Preserve unrelated work. Ask only when a missing decision materially changes scope.
-- Follow [contribution rules](CONTRIBUTING.md). Do not commit secrets, local data, dependencies, or generated output. Verify only the changed scope and distinguish plans from executed results.
+- Follow [contribution rules](CONTRIBUTING.md), including the shared branch naming convention for human and AI contributors. Do not commit secrets, local data, dependencies, or generated output. Verify only the changed scope and distinguish plans from executed results.
+
+## Branch rules for agents
+
+- Use `<type>/<issue-number>-<summary>` for all agent-created work branches, including delegated work and worktrees. Types: `feature`, `fix`, `docs`, `chore`.
+- Do not use AI tool or agent names as branch prefixes, including `codex/` and `claude/`. Human and AI contributors follow the same convention.
+- Use the assigned `danjjak-app` issue number without `#`, including when migrating code from `danjjak`. Link the source issue, PR, or commit in the pull request.
+- Use a short English lowercase kebab-case summary, for example `feature/12-spring-setup`. Only omit the issue number when no related issue exists, for example `docs/branch-rules`.
+- Start new work branches from `main`, keep each branch within one issue or cohesive feature, and target `main` in pull requests. Reuse an existing branch for the assigned work when appropriate; do not rename or switch another agent's active branch.
+- Apply these naming rules without requesting confirmation for routine branch naming. Follow the [contribution workflow](CONTRIBUTING.md) for review, verification, and merging.
+
+## Work routing
 
 | Assigned work | Read when needed |
 | --- | --- |
