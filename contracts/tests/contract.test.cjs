@@ -123,6 +123,25 @@ test('받는 계좌 응답에 잔액·PIN·전체 번호를 허용하지 않는�
   for (const extra of [{ balance: 0 }, { pin: '0000' }, { accountNumber: '00000000' }]) check('RecipientAccount', { ...account, ...extra }, false);
 });
 
+test('내 계좌 불러오기는 중복 없는 문자열 ID만 받고 안전한 조회 필드를 반환한다', () => {
+  check('AccountImport', { accountIds: ['2', '1'] });
+  for (const accountIds of [[], ['1', '1'], [1], ['0'], [null]]) {
+    check('AccountImport', { accountIds }, false);
+  }
+  const account = {
+    accountId: '9007199254740992', bankCode: '004', bankName: '예시 은행',
+    accountAlias: null, maskedAccountNumber: '123-****-5678', balance: 100, primary: false,
+  };
+  check('OwnedAccount', account);
+  for (const extra of [{ accountNumber: '12345678' }, { pin: '0000' }, { importedAt: instant }]) {
+    check('OwnedAccount', { ...account, ...extra }, false);
+  }
+  const { balance, primary, ...candidate } = account;
+  check('ImportCandidate', { ...candidate, available: true, unavailableReason: null });
+  check('ImportCandidate', { ...candidate, available: false, unavailableReason: '준비 중이에요.' });
+  check('ImportCandidate', { ...candidate, available: true, unavailableReason: null, balance }, false);
+});
+
 test('패턴 번호·개수의 경계와 수정 책임을 제한한다', () => {
   const pattern = { requestId: uuid, templateId: id, shortcutNumber: 12, title: '예시 업무' };
   check('PatternCreate', pattern);

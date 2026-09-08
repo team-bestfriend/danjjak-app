@@ -4,6 +4,12 @@
 
 현재 이관본에는 `guidanceApi.js`와 `instructionSuggestionApi.js`가 아직 없습니다. 아래 해당 행은 이전 레포의 추가 구현을 참고한 이관 기준입니다.
 
+## #19 적용 결과
+
+내 계좌 목록·후보·불러오기·기본값 저장은 본 계약의 문자열 ID와 `maskedAccountNumber`를 사용하도록 FE·BE를 연결했습니다. 저장 후 실제 계좌 목록으로 준비 상태를 갱신하며, 기존 계좌 API 파일에는 필요한 동작만 추가했습니다. 계좌 및 사람 저장은 세션에서 받은 CSRF 값을 전달합니다. [#19 검증 기록](../docs/verification/issue-19-owned-accounts.md)에 실제 MySQL·브라우저 검사와 남은 인증/송금 연동을 구분했습니다.
+
+사람 목록은 복수 `accounts`를 보존하도록 호환했지만 사람/받는 계좌의 전체 계약은 #21, 거래 응답의 전체 계약 적용은 후속 조회 이슈 범위입니다. 아래 표는 #11 당시의 차이 목록이며 #19의 위 적용 항목은 해결되었습니다. `listBanks`와 인증 API의 CSRF 발급은 이번 구현에 포함하지 않습니다.
+
 ## 유지하는 접점
 
 - `/api/auth/kakao/start`, `/api/auth/session`, `/api/auth/logout`, `/api/users/me` 및 설정/동의 경로.

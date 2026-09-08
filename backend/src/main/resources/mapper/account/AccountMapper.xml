@@ -3,6 +3,31 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.bestfriend.danjjak.account.mapper.AccountMapper">
+    <select id="findAccountConsent" resultType="java.lang.Boolean">
+        SELECT consent_completed FROM users WHERE user_id = #{userId}
+    </select>
+
+    <select id="lockUserForAccountUpdate" resultType="java.lang.Boolean" flushCache="true">
+        SELECT consent_completed FROM users WHERE user_id = #{userId} FOR UPDATE
+    </select>
+
+    <update id="clearOwnedAccountDefaults">
+        UPDATE bank_accounts SET is_primary = FALSE
+        WHERE user_id = #{userId} AND registered_person_id IS NULL AND is_primary = TRUE
+    </update>
+
+    <update id="clearUnimportedAccountDefaults">
+        UPDATE bank_accounts SET is_primary = FALSE
+        WHERE user_id = #{userId} AND registered_person_id IS NULL
+          AND imported_at IS NULL AND is_primary = TRUE
+    </update>
+
+    <update id="setOwnedAccountDefault">
+        UPDATE bank_accounts SET is_primary = TRUE
+        WHERE user_id = #{userId} AND bank_account_id = #{accountId}
+          AND registered_person_id IS NULL AND imported_at IS NOT NULL
+    </update>
+
     <resultMap id="ownedAccountMap"
                type="com.bestfriend.danjjak.account.model.AccountRecord">
         <id property="accountId" column="bank_account_id"/>
