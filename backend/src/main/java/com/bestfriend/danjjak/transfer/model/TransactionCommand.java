@@ -1,9 +1,25 @@
 package com.bestfriend.danjjak.transfer.model;
 
-/**
- * 선택 내 계좌 차감과 함께 확정할 거래·당시 받는 정보의 저장 명령.
- * 협력: TransferService, TransferMapper.
- * 근거: FR-031, FR-033. <a href="../../../../../../../../../docs/specs/requirements/mock-transfer.md">상세 명세</a>.
- */
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
 public class TransactionCommand {
+
+    private Long transactionId;
+    private long userId;
+    private long sourceAccountId;
+    private Long recipientAccountId;
+    private Long patternExecutionId;
+    private BigDecimal amount;
+    private String recipientName;
+    private String recipientBankCode;
+    private String recipientBankName;
+    private String recipientAccountNumber;
+    private String description;
+    private BigDecimal balanceAfter;
+    private LocalDateTime transactionAt;
 }

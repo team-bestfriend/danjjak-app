@@ -1,9 +1,18 @@
 package com.bestfriend.danjjak.analysis.model;
 
-/**
- * 패턴별 완료 횟수와 표시 순서·활성 상태를 나타내는 집계 모델.
- * 협력: UsageAnalysisMapper, UsageAnalysisService.
- * 근거: FR-048. <a href="../../../../../../../../../docs/specs/requirements/usage-analysis.md">상세 명세</a>.
- */
 public class PatternUsageRecord {
+
+    private long patternId;
+    private String patternType;
+    private String title;
+    private long completedCount;
+
+    public long getPatternId() { return patternId; }
+    public void setPatternId(long patternId) { this.patternId = patternId; }
+    public String getPatternType() { return patternType; }
+    public void setPatternType(String patternType) { this.patternType = patternType; }
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
+    public long getCompletedCount() { return completedCount; }
+    public void setCompletedCount(long completedCount) { this.completedCount = completedCount; }
 }

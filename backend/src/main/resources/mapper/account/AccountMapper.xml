@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bestfriend.danjjak.account.mapper.AccountMapper">
+    <resultMap id="ownedAccountMap"
+               type="com.bestfriend.danjjak.account.model.AccountRecord">
+        <id property="accountId" column="bank_account_id"/>
+        <result property="bankCode" column="bank_code"/>
+        <result property="bankName" column="bank_name"/>
+        <result property="accountNumber" column="account_number"/>
+        <result property="accountAlias" column="account_alias"/>
+        <result property="balance" column="balance"/>
+        <result property="primary" column="is_primary"/>
+        <result property="importedAt" column="imported_at"/>
+    </resultMap>
+
+    <select id="findOwnedAccounts" resultMap="ownedAccountMap">
+        SELECT bank_account_id,
+               bank_code,
+               bank_name,
+               account_number,
+               account_alias,
+               balance,
+               is_primary,
+               imported_at
+        FROM bank_accounts
+        WHERE user_id = #{userId}
+          AND registered_person_id IS NULL
+          AND imported_at IS NOT NULL
+        ORDER BY is_primary DESC, bank_account_id
+    </select>
+
+    <select id="findOwnedAccountCandidates" resultMap="ownedAccountMap">
+        SELECT bank_account_id,
+               bank_code,
+               bank_name,
+               account_number,
+               account_alias,
+               balance,
+               is_primary,
+               imported_at
+        FROM bank_accounts
+        WHERE user_id = #{userId}
+          AND registered_person_id IS NULL
+          AND imported_at IS NULL
+        ORDER BY bank_account_id
+    </select>
+
+    <update id="importOwnedAccount">
+        UPDATE bank_accounts
+        SET imported_at = COALESCE(imported_at, CURRENT_TIMESTAMP)
+        WHERE user_id = #{userId}
+          AND bank_account_id = #{accountId}
+          AND registered_person_id IS NULL
+    </update>
+
+    <select id="findOwnedAccount" resultMap="ownedAccountMap">
+        SELECT bank_account_id,
+               bank_code,
+               bank_name,
+               account_number,
+               account_alias,
+               balance,
+               is_primary,
+               imported_at
+        FROM bank_accounts
+        WHERE user_id = #{userId}
+          AND bank_account_id = #{accountId}
+          AND registered_person_id IS NULL
+          AND imported_at IS NOT NULL
+    </select>
+
+    <select id="findRegisteredPersons"
+            resultType="com.bestfriend.danjjak.account.model.RegisteredPersonRecord">
+        SELECT registered_person_id,
+               name,
+               relationship
+        FROM registered_persons
+        WHERE user_id = #{userId}
+        ORDER BY registered_person_id
+    </select>
+
+    <select id="findRegisteredPerson"
+            resultType="com.bestfriend.danjjak.account.model.RegisteredPersonRecord">
+        SELECT registered_person_id,
+               name,
+               relationship
+        FROM registered_persons
+        WHERE user_id = #{userId}
+          AND registered_person_id = #{registeredPersonId}
+    </select>
+
+    <select id="findRegisteredPersonAccounts"
+            resultType="com.bestfriend.danjjak.account.model.RegisteredPersonAccountRecord">
+        SELECT rp.registered_person_id,
+               rp.name,
+               rp.relationship,
+               ba.bank_account_id AS account_id,
+               ba.bank_code,
+               ba.bank_name,
+               ba.account_number,
+               ba.account_alias
+        FROM registered_persons rp
+        JOIN bank_accounts ba
+          ON ba.registered_person_id = rp.registered_person_id
+         AND ba.user_id = rp.user_id
+        WHERE rp.user_id = #{userId}
+          AND rp.registered_person_id = #{registeredPersonId}
+        ORDER BY ba.bank_account_id
+    </select>
+
+    <insert id="insertRegisteredPerson"
+            useGeneratedKeys="true"
+            keyProperty="registeredPersonId"
+            keyColumn="registered_person_id">
+        INSERT INTO registered_persons (user_id, name, relationship)
+        VALUES (#{userId}, #{name}, #{relationship})
+    </insert>
+
+    <insert id="insertRecipientAccount"
+            useGeneratedKeys="true"
+            keyProperty="accountId"
+            keyColumn="bank_account_id">
+        INSERT INTO bank_accounts (
+            user_id,
+            registered_person_id,
+            bank_code,
+            bank_name,
+            account_number,
+            account_alias,
+            account_pin_hash,
+            balance,
+            is_primary
+        ) VALUES (
+            #{userId},
+            #{registeredPersonId},
+            #{bankCode},
+            #{bankName},
+            #{accountNumber},
+            #{accountAlias},
+            NULL,
+            NULL,
+            FALSE
+        )
+    </insert>
+
+    <update id="updateRegisteredPerson">
+        UPDATE registered_persons
+        SET name = #{name},
+            relationship = #{relationship}
+        WHERE registered_person_id = #{registeredPersonId}
+          AND user_id = #{userId}
+    </update>
+
+    <update id="updateRecipientAccount">
+        UPDATE bank_accounts
+        SET bank_code = #{bankCode},
+            bank_name = #{bankName},
+            account_number = #{accountNumber},
+            account_alias = #{accountAlias}
+        WHERE bank_account_id = #{accountId}
+          AND user_id = #{userId}
+          AND registered_person_id = #{registeredPersonId}
+    </update>
+
+    <select id="findTransactions"
+            resultType="com.bestfriend.danjjak.account.model.TransactionRecord">
+        SELECT transaction_id,
+               transaction_type,
+               transaction_category AS category,
+               amount,
+               counterparty_name,
+               description,
+               balance_after,
+               transaction_at
+        FROM transactions
+        WHERE user_id = #{userId}
+          AND bank_account_id = #{accountId}
+        <if test="category != null">
+          AND transaction_category = #{category}
+        </if>
+        ORDER BY transaction_at DESC, transaction_id DESC
+    </select>
+</mapper>

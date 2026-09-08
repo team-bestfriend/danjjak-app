@@ -1,9 +1,32 @@
 package com.bestfriend.danjjak.analysis.model;
 
-/**
- * 같은 단계의 행동 합계와 실측 시간으로 검토 후보를 나타내는 모델.
- * 협력: UsageAnalysisMapper, UsageAnalysisService.
- * 근거: FR-047, FR-049. <a href="../../../../../../../../../docs/specs/requirements/usage-analysis.md">상세 명세</a>.
- */
+import java.math.BigDecimal;
+
 public class StepAnalysisRecord {
+
+    private long patternId;
+    private long stepId;
+    private String stepCode;
+    private String stepName;
+    private int stepOrder;
+    private long visitCount;
+    private long errorScore;
+    private BigDecimal averageDurationSeconds;
+
+    public long getPatternId() { return patternId; }
+    public void setPatternId(long patternId) { this.patternId = patternId; }
+    public long getStepId() { return stepId; }
+    public void setStepId(long stepId) { this.stepId = stepId; }
+    public String getStepCode() { return stepCode; }
+    public void setStepCode(String stepCode) { this.stepCode = stepCode; }
+    public String getStepName() { return stepName; }
+    public void setStepName(String stepName) { this.stepName = stepName; }
+    public int getStepOrder() { return stepOrder; }
+    public void setStepOrder(int stepOrder) { this.stepOrder = stepOrder; }
+    public long getVisitCount() { return visitCount; }
+    public void setVisitCount(long visitCount) { this.visitCount = visitCount; }
+    public long getErrorScore() { return errorScore; }
+    public void setErrorScore(long errorScore) { this.errorScore = errorScore; }
+    public BigDecimal getAverageDurationSeconds() { return averageDurationSeconds; }
+    public void setAverageDurationSeconds(BigDecimal averageDurationSeconds) { this.averageDurationSeconds = averageDurationSeconds; }
 }

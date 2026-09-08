@@ -1,0 +1,66 @@
+name: danjjak-app
+
+services:
+  mysql:
+    image: mysql:8.4.11
+
+    environment:
+      # .env 에 값이 없으면 컨테이너를 띄우지 않고 에러 메시지 뜸.
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD_is_required}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?MYSQL_DATABASE_is_required}
+      MYSQL_USER: ${MYSQL_USER:?MYSQL_USER_is_required}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD_is_required}
+      # 백엔드 jdbc URL 의 serverTimezone=Asia/Seoul 과 맞춤.
+      TZ: Asia/Seoul
+
+    ports:
+      # 왼쪽은 내 PC 포트, 오른쪽은 컨테이너 내부 포트(고정)
+      - "${MYSQL_PORT:-3306}:3306"
+
+    command:
+      # MySQL 서버의 기본 문자셋과 정렬 규칙을 고정한다. 서버가 켜질 때마다 적용된다.
+      # 이미 만들어진 DB·테이블의 문자셋은 이 설정만으로 바뀌지 않는다.
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+    healthcheck:
+      # flyway 가 MySQL 준비를 기다리는 근거.
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      # 첫 기동 30초 동안은 봐줌.
+      start_period: 30s
+
+  flyway:
+    image: flyway/flyway:13.4.0
+
+    depends_on:
+      mysql:
+        # 그냥 뜬 상태가 아니라 healthy 가 된 뒤에 시작.
+        condition: service_healthy
+
+    environment:
+      # 호스트명은 localhost 가 아니라 compose 서비스 이름(mysql)
+      # 포트도 컨테이너 내부 포트라 .env 의 MYSQL_PORT 와 무관.
+      FLYWAY_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}
+      FLYWAY_USER: ${MYSQL_USER}
+      FLYWAY_PASSWORD: ${MYSQL_PASSWORD}
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+      FLYWAY_CONNECT_RETRIES: "60"
+      # 스키마를 통째로 지우는 clean 명령을 아예 막음.
+      FLYWAY_CLEAN_DISABLED: "true"
+      # 파일명이 규칙에 안 맞으면 조용히 무시하지 말고 실패시킨다
+      FLYWAY_VALIDATE_MIGRATION_NAMING: "true"
+
+    volumes:
+      # ../ 는 저장소 루트. 마이그레이션 SQL 의 원본은 db/migration 이다
+      - ../db/migration:/flyway/sql:ro
+
+    command: migrate
+
+volumes:
+  mysql-data:

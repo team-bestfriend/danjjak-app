@@ -1,9 +1,26 @@
 package com.bestfriend.danjjak.support.mapper;
 
-/**
- * 보호자 번호·알림 대상 판정·실제 성공 시각의 저장 및 조회 경계.
- * 협력: SupportService, GuardianNotificationService.
- * 근거: FR-009, FR-041, FR-042. <a href="../../../../../../../../../docs/specs/requirements/fds-guardian.md">상세 명세</a>.
- */
+import com.bestfriend.danjjak.support.model.GuardianContactRecord;
+import com.bestfriend.danjjak.support.model.NotificationAnomalyRecord;
+import java.time.LocalDateTime;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+@Mapper
 public interface SupportMapper {
+
+    boolean hasGuardianShareConsent(long userId);
+
+    GuardianContactRecord findGuardian(long userId);
+
+    int upsertGuardian(
+            @Param("userId") long userId, @Param("phoneNumber") String phoneNumber);
+
+    NotificationAnomalyRecord findHighAnomaly(
+            @Param("userId") long userId, @Param("anomalyEventId") long anomalyEventId);
+
+    int markGuardianNotified(
+            @Param("userId") long userId,
+            @Param("anomalyEventId") long anomalyEventId,
+            @Param("notifiedAt") LocalDateTime notifiedAt);
 }

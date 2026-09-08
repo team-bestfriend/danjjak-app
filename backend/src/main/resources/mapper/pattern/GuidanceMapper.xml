@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bestfriend.danjjak.pattern.mapper.GuidanceMapper">
+    <select id="findAll" resultType="com.bestfriend.danjjak.pattern.model.GuidanceRecord">
+        SELECT 'start' AS target, description AS text, voice_mode, voice_file_path,
+               voice_content_type, voice_script_outdated
+        FROM financial_patterns
+        WHERE user_id = #{userId} AND financial_pattern_id = #{patternId} AND is_active = TRUE
+        UNION ALL
+        SELECT ps.step_code AS target, ps.instruction_text AS text, ps.voice_mode, ps.voice_file_path,
+               ps.voice_content_type, ps.voice_script_outdated
+        FROM pattern_steps ps JOIN financial_patterns fp USING (financial_pattern_id)
+        WHERE fp.user_id = #{userId} AND fp.financial_pattern_id = #{patternId}
+          AND fp.is_active = TRUE AND ps.step_code != 'TRANSFER_COMPLETE'
+    </select>
+
+    <update id="updateText">
+        <choose>
+            <when test="target == 'start'">
+                UPDATE financial_patterns
+                SET voice_script_outdated = voice_script_outdated OR
+                        (voice_file_path IS NOT NULL AND BINARY description != BINARY #{text}),
+                    description = #{text}, voice_mode = #{voiceMode}
+                WHERE user_id = #{userId} AND financial_pattern_id = #{patternId} AND is_active = TRUE
+            </when>
+            <otherwise>
+                UPDATE pattern_steps ps JOIN financial_patterns fp USING (financial_pattern_id)
+                SET ps.voice_script_outdated = ps.voice_script_outdated OR
+                        (ps.voice_file_path IS NOT NULL AND BINARY ps.instruction_text != BINARY #{text}),
+                    ps.instruction_text = #{text}, ps.voice_mode = #{voiceMode}
+                WHERE fp.user_id = #{userId} AND fp.financial_pattern_id = #{patternId}
+                  AND fp.is_active = TRUE AND ps.step_code = #{target}
+            </otherwise>
+        </choose>
+    </update>
+
+    <update id="updateAudio">
+        <choose>
+            <when test="target == 'start'">
+                UPDATE financial_patterns
+                SET voice_file_path = #{filePath}, voice_content_type = #{contentType},
+                    voice_script_outdated = FALSE
+                WHERE user_id = #{userId} AND financial_pattern_id = #{patternId} AND is_active = TRUE
+            </when>
+            <otherwise>
+                UPDATE pattern_steps ps JOIN financial_patterns fp USING (financial_pattern_id)
+                SET ps.voice_file_path = #{filePath}, ps.voice_content_type = #{contentType},
+                    ps.voice_script_outdated = FALSE
+                WHERE fp.user_id = #{userId} AND fp.financial_pattern_id = #{patternId}
+                  AND fp.is_active = TRUE AND ps.step_code = #{target}
+            </otherwise>
+        </choose>
+    </update>
+</mapper>

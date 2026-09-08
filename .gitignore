@@ -1,6 +1,7 @@
 # Local secrets and data
 .env
 .env.*
+!.env.example
 *.local
 *.log
 # Dependencies and generated output

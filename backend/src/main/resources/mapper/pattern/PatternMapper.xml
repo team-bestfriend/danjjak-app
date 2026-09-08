@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bestfriend.danjjak.pattern.mapper.PatternMapper">
+    <resultMap id="patternRecordMap" type="com.bestfriend.danjjak.pattern.model.PatternRecord">
+        <id property="patternId" column="financial_pattern_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="shortcutNumber" column="shortcut_number"/>
+        <result property="patternType" column="pattern_type"/>
+        <result property="title" column="title"/>
+        <result property="description" column="description"/>
+        <result property="linkedAccountId" column="linked_bank_account_id"/>
+        <result property="bankCode" column="bank_code"/>
+        <result property="bankName" column="bank_name"/>
+        <result property="accountNumber" column="account_number"/>
+        <result property="accountAlias" column="account_alias"/>
+        <result property="registeredPersonId" column="registered_person_id"/>
+        <result property="registeredPersonName" column="registered_person_name"/>
+        <result property="relationship" column="relationship"/>
+    </resultMap>
+
+    <resultMap id="patternStepMap" type="com.bestfriend.danjjak.pattern.model.PatternStepRecord">
+        <id property="stepId" column="pattern_step_id"/>
+        <result property="patternId" column="financial_pattern_id"/>
+        <result property="stepOrder" column="step_order"/>
+        <result property="stepCode" column="step_code"/>
+        <result property="stepName" column="step_name"/>
+        <result property="instructionText" column="instruction_text"/>
+        <result property="screenCode" column="screen_code"/>
+        <result property="targetElementId" column="target_element_id"/>
+        <result property="voiceFilePath" column="voice_file_path"/>
+        <result property="voiceContentType" column="voice_content_type"/>
+    </resultMap>
+
+    <resultMap id="stepVisitMap" type="com.bestfriend.danjjak.pattern.model.StepVisitRecord">
+        <id property="visitId" column="step_execution_log_id"/>
+        <result property="executionId" column="pattern_execution_id"/>
+        <result property="stepId" column="pattern_step_id"/>
+        <result property="visitNumber" column="visit_number"/>
+        <result property="retryCount" column="retry_count"/>
+        <result property="backCount" column="back_count"/>
+        <result property="wrongTouchCount" column="wrong_touch_count"/>
+        <result property="routeDeviation" column="route_deviation"/>
+        <result property="completed" column="completed"/>
+        <result property="startedAt" column="started_at"/>
+        <result property="endedAt" column="ended_at"/>
+    </resultMap>
+
+    <sql id="patternColumns">
+        fp.financial_pattern_id,
+        fp.user_id,
+        fp.shortcut_number,
+        fp.pattern_type,
+        fp.title,
+        fp.description,
+        fp.linked_bank_account_id,
+        ba.bank_code,
+        ba.bank_name,
+        ba.account_number,
+        ba.account_alias,
+        rp.registered_person_id,
+        rp.name AS registered_person_name,
+        rp.relationship
+    </sql>
+
+    <select id="findActivePatterns" resultMap="patternRecordMap">
+        SELECT <include refid="patternColumns"/>
+        FROM financial_patterns fp
+        LEFT JOIN bank_accounts ba ON ba.bank_account_id = fp.linked_bank_account_id
+        LEFT JOIN registered_persons rp ON rp.registered_person_id = ba.registered_person_id
+        WHERE fp.user_id = #{userId} AND fp.is_active = TRUE
+        ORDER BY fp.shortcut_number
+    </select>
+
+    <select id="findActivePattern" resultMap="patternRecordMap">
+        SELECT <include refid="patternColumns"/>
+        FROM financial_patterns fp
+        LEFT JOIN bank_accounts ba ON ba.bank_account_id = fp.linked_bank_account_id
+        LEFT JOIN registered_persons rp ON rp.registered_person_id = ba.registered_person_id
+        WHERE fp.user_id = #{userId}
+          AND fp.financial_pattern_id = #{patternId}
+          AND fp.is_active = TRUE
+    </select>
+
+    <select id="findPatternSteps" resultMap="patternStepMap">
+        SELECT pattern_step_id,
+               financial_pattern_id,
+               step_order,
+               step_code,
+               step_name,
+               instruction_text,
+               screen_code,
+               target_element_id,
+               voice_file_path,
+               voice_content_type
+        FROM pattern_steps
+        WHERE financial_pattern_id = #{patternId}
+          AND step_code != 'TRANSFER_COMPLETE'
+        ORDER BY step_order
+    </select>
+
+    <select id="findActivePatternIdsForUpdate" resultType="long">
+        SELECT financial_pattern_id
+        FROM financial_patterns
+        WHERE user_id = #{userId} AND is_active = TRUE
+        ORDER BY financial_pattern_id
+        FOR UPDATE
+    </select>
+
+    <select id="countShortcut" resultType="int">
+        SELECT COUNT(*)
+        FROM financial_patterns
+        WHERE user_id = #{userId}
+          AND shortcut_number = #{shortcutNumber}
+          AND is_active = TRUE
+    </select>
+
+    <select id="countUserAccount" resultType="int">
+        SELECT COUNT(*) FROM bank_accounts
+        WHERE user_id = #{userId} AND bank_account_id = #{accountId}
+    </select>
+
+    <select id="countRegisteredRecipientAccount" resultType="int">
+        SELECT COUNT(*) FROM bank_accounts
+        WHERE user_id = #{userId}
+          AND bank_account_id = #{accountId}
+          AND registered_person_id IS NOT NULL
+    </select>
+
+    <select id="findPrimaryAccountId" resultType="long">
+        SELECT bank_account_id
+        FROM bank_accounts
+        WHERE user_id = #{userId}
+          AND registered_person_id IS NULL
+        ORDER BY is_primary DESC, bank_account_id
+        LIMIT 1
+    </select>
+
+    <insert id="insertPattern" useGeneratedKeys="true" keyProperty="patternId" keyColumn="financial_pattern_id">
+        INSERT INTO financial_patterns (
+            user_id, shortcut_number, pattern_type, title, description, linked_bank_account_id
+        ) VALUES (
+            #{userId}, #{shortcutNumber}, #{patternType}, #{title}, #{description}, #{linkedAccountId}
+        )
+    </insert>
+
+    <insert id="insertPatternStep">
+        INSERT INTO pattern_steps (
+            financial_pattern_id, step_order, step_code, step_name,
+            instruction_text, screen_code, target_element_id
+        ) VALUES (
+            #{patternId}, #{stepOrder}, #{stepCode}, #{stepName},
+            #{instructionText}, #{screenCode}, #{targetElementId}
+        )
+    </insert>
+
+    <update id="updatePattern">
+        UPDATE financial_patterns
+        SET voice_script_outdated = voice_script_outdated OR
+                (voice_file_path IS NOT NULL AND BINARY description != BINARY #{description}),
+            title = #{title},
+            description = #{description},
+            linked_bank_account_id = #{linkedAccountId}
+        WHERE user_id = #{userId}
+          AND financial_pattern_id = #{patternId}
+          AND is_active = TRUE
+    </update>
+
+    <update id="updateStepInstruction">
+        UPDATE pattern_steps ps
+        JOIN financial_patterns fp ON fp.financial_pattern_id = ps.financial_pattern_id
+        SET ps.voice_script_outdated = ps.voice_script_outdated OR
+                (ps.voice_file_path IS NOT NULL AND BINARY ps.instruction_text != BINARY #{instructionText}),
+            ps.instruction_text = #{instructionText}
+        WHERE fp.user_id = #{userId}
+          AND fp.financial_pattern_id = #{patternId}
+          AND fp.is_active = TRUE
+          AND ps.step_code = #{stepCode}
+    </update>
+
+    <update id="deactivatePattern">
+        UPDATE financial_patterns
+        SET is_active = FALSE, shortcut_number = NULL
+        WHERE user_id = #{userId}
+          AND financial_pattern_id = #{patternId}
+          AND is_active = TRUE
+    </update>
+
+    <update id="clearActiveShortcuts">
+        UPDATE financial_patterns
+        SET is_active = FALSE, shortcut_number = NULL
+        WHERE user_id = #{userId} AND is_active = TRUE
+    </update>
+
+    <update id="activatePatternAtShortcut">
+        UPDATE financial_patterns
+        SET is_active = TRUE, shortcut_number = #{shortcutNumber}
+        WHERE user_id = #{userId} AND financial_pattern_id = #{patternId}
+    </update>
+
+    <select id="isUsageLogAgreed" resultType="boolean">
+        SELECT usage_log_agreed FROM users WHERE user_id = #{userId}
+    </select>
+
+    <insert id="insertExecution" useGeneratedKeys="true" keyProperty="executionId" keyColumn="pattern_execution_id">
+        INSERT INTO pattern_executions (
+            financial_pattern_id, source_bank_account_id, status, started_at
+        ) VALUES (
+            #{patternId}, #{sourceAccountId}, 'STARTED', #{startedAt}
+        )
+    </insert>
+
+    <select id="countOwnedSourceAccount" resultType="int">
+        SELECT COUNT(*) FROM bank_accounts
+        WHERE user_id = #{userId}
+          AND bank_account_id = #{accountId}
+          AND registered_person_id IS NULL
+    </select>
+
+    <select id="findExecutionStatusForUpdate" resultType="string">
+        SELECT pe.status
+        FROM pattern_executions pe
+        JOIN financial_patterns fp ON fp.financial_pattern_id = pe.financial_pattern_id
+        WHERE fp.user_id = #{userId} AND pe.pattern_execution_id = #{executionId}
+        FOR UPDATE
+    </select>
+
+    <select id="countExecutionStep" resultType="int">
+        SELECT COUNT(*)
+        FROM pattern_executions pe
+        JOIN financial_patterns fp ON fp.financial_pattern_id = pe.financial_pattern_id
+        JOIN pattern_steps ps ON ps.financial_pattern_id = fp.financial_pattern_id
+        WHERE fp.user_id = #{userId}
+          AND pe.pattern_execution_id = #{executionId}
+          AND pe.status = 'STARTED'
+          AND ps.pattern_step_id = #{stepId}
+          AND ps.step_code != 'TRANSFER_COMPLETE'
+    </select>
+
+    <select id="nextVisitNumber" resultType="int">
+        SELECT visit_number + 1
+        FROM step_execution_logs
+        WHERE pattern_execution_id = #{executionId} AND pattern_step_id = #{stepId}
+        ORDER BY visit_number DESC
+        LIMIT 1
+        FOR UPDATE
+    </select>
+
+    <insert id="insertStepVisit" useGeneratedKeys="true" keyProperty="visitId" keyColumn="step_execution_log_id">
+        INSERT INTO step_execution_logs (
+            pattern_execution_id, pattern_step_id, visit_number, started_at
+        ) VALUES (
+            #{executionId}, #{stepId}, #{visitNumber}, #{startedAt}
+        )
+    </insert>
+
+    <select id="findStepVisitForUpdate" resultMap="stepVisitMap">
+        SELECT sel.*
+        FROM step_execution_logs sel
+        JOIN pattern_executions pe ON pe.pattern_execution_id = sel.pattern_execution_id
+        JOIN financial_patterns fp ON fp.financial_pattern_id = pe.financial_pattern_id
+        WHERE fp.user_id = #{userId}
+          AND sel.pattern_execution_id = #{executionId}
+          AND sel.step_execution_log_id = #{visitId}
+        FOR UPDATE
+    </select>
+
+    <select id="findStepVisit" resultMap="stepVisitMap">
+        SELECT sel.*
+        FROM step_execution_logs sel
+        JOIN pattern_executions pe ON pe.pattern_execution_id = sel.pattern_execution_id
+        JOIN financial_patterns fp ON fp.financial_pattern_id = pe.financial_pattern_id
+        WHERE fp.user_id = #{userId}
+          AND sel.pattern_execution_id = #{executionId}
+          AND sel.step_execution_log_id = #{visitId}
+    </select>
+
+    <update id="updateStepVisit">
+        UPDATE step_execution_logs
+        SET retry_count = GREATEST(retry_count, #{retryCount}),
+            back_count = GREATEST(back_count, #{backCount}),
+            wrong_touch_count = GREATEST(wrong_touch_count, #{wrongTouchCount}),
+            route_deviation = route_deviation OR #{routeDeviation},
+            completed = #{completed},
+            ended_at = #{endedAt}
+        WHERE step_execution_log_id = #{visitId} AND ended_at IS NULL
+    </update>
+
+    <select id="findExecutionEndedAt" resultType="java.time.LocalDateTime">
+        SELECT pe.ended_at
+        FROM pattern_executions pe
+        JOIN financial_patterns fp ON fp.financial_pattern_id = pe.financial_pattern_id
+        WHERE fp.user_id = #{userId} AND pe.pattern_execution_id = #{executionId}
+    </select>
+
+    <update id="closeOpenVisits">
+        UPDATE step_execution_logs
+        SET ended_at = #{endedAt}
+        WHERE pattern_execution_id = #{executionId} AND ended_at IS NULL
+    </update>
+
+    <update id="finishExecution">
+        UPDATE pattern_executions pe
+        JOIN financial_patterns fp ON fp.financial_pattern_id = pe.financial_pattern_id
+        SET pe.status = #{status}, pe.ended_at = #{endedAt}
+        WHERE fp.user_id = #{userId}
+          AND pe.pattern_execution_id = #{executionId}
+          AND pe.status = 'STARTED'
+    </update>
+</mapper>

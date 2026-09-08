@@ -37,6 +37,11 @@ dependencies {
     runtimeOnly 'org.apache.logging.log4j:log4j-slf4j2-impl'
     runtimeOnly 'org.apache.logging.log4j:log4j-web'
 
+    compileOnly 'org.projectlombok:lombok:1.18.42'
+    annotationProcessor 'org.projectlombok:lombok:1.18.42'
+    testCompileOnly 'org.projectlombok:lombok:1.18.42'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.42'
+
     // Servlet API는 Tomcat 9가 제공하므로 WAR에 포함하지 않습니다.
     providedCompile 'javax.servlet:javax.servlet-api:4.0.1'
 

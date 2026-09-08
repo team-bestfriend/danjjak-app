@@ -1,9 +1,80 @@
 package com.bestfriend.danjjak.account.model;
 
-/**
- * 조회·출금에 쓰는 모의 본인 계좌의 업무 모델.
- * 협력: AccountMapper, AccountService.
- * 근거: FR-007, FR-008, FR-058. <a href="../../../../../../../../../docs/specs/requirements/people-accounts.md">상세 명세</a>.
- */
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
 public class AccountRecord {
+
+    private Long accountId;
+    private String bankCode;
+    private String bankName;
+    private String accountNumber;
+    private String accountAlias;
+    private BigDecimal balance;
+    private boolean primary;
+    private LocalDateTime importedAt;
+
+    public Long getAccountId() {
+        return accountId;
+    }
+
+    public void setAccountId(Long accountId) {
+        this.accountId = accountId;
+    }
+
+    public String getBankCode() {
+        return bankCode;
+    }
+
+    public void setBankCode(String bankCode) {
+        this.bankCode = bankCode;
+    }
+
+    public String getBankName() {
+        return bankName;
+    }
+
+    public void setBankName(String bankName) {
+        this.bankName = bankName;
+    }
+
+    public String getAccountNumber() {
+        return accountNumber;
+    }
+
+    public void setAccountNumber(String accountNumber) {
+        this.accountNumber = accountNumber;
+    }
+
+    public String getAccountAlias() {
+        return accountAlias;
+    }
+
+    public void setAccountAlias(String accountAlias) {
+        this.accountAlias = accountAlias;
+    }
+
+    public BigDecimal getBalance() {
+        return balance;
+    }
+
+    public void setBalance(BigDecimal balance) {
+        this.balance = balance;
+    }
+
+    public boolean isPrimary() {
+        return primary;
+    }
+
+    public void setPrimary(boolean primary) {
+        this.primary = primary;
+    }
+
+    public LocalDateTime getImportedAt() {
+        return importedAt;
+    }
+
+    public void setImportedAt(LocalDateTime importedAt) {
+        this.importedAt = importedAt;
+    }
 }
